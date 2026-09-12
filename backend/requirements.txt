@@ -2,3 +2,4 @@ osmnx
 pandas
 ortools
 google-genai
+scikit-learn
