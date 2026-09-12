@@ -1,0 +1,101 @@
+order_id,arrival_minute,deadline_minute,restaurant_zone,delivery_zone,solomon_demand,prep_time_min,base_fee_mxn,tip_mxn
+59,9,44,Centrito Valle (San Pedro),Cumbres,28,9,24.05,20
+92,9,44,Valle Oriente (San Pedro),Santa Catarina,2,5,23.57,35
+42,17,52,Tec de Monterrey (Garza Sada),Santa Catarina,5,6,18.51,50
+14,17,52,Valle Oriente (San Pedro),San Jerónimo,20,10,26.43,20
+45,17,52,San Jerónimo,Cumbres,16,12,20.85,10
+5,18,53,Tec de Monterrey (Garza Sada),Valle Oriente (San Pedro),26,11,21.4,0
+63,18,53,Cumbres,Apodaca (Industrial),10,5,19.12,35
+72,19,54,Centrito Valle (San Pedro),Tec de Monterrey (Garza Sada),25,8,21.98,0
+33,20,55,Centro MTY (Barrio Antiguo),Tec de Monterrey (Garza Sada),11,8,23.88,0
+27,20,55,Centro MTY (Barrio Antiguo),Cumbres,16,8,18.58,20
+28,21,56,Tec de Monterrey (Garza Sada),Centrito Valle (San Pedro),16,12,26.16,50
+95,21,56,Valle Oriente (San Pedro),Apodaca (Industrial),20,12,26.97,20
+36,22,57,Valle Oriente (San Pedro),Centrito Valle (San Pedro),5,12,20.43,10
+39,24,59,Cumbres,Centro MTY (Barrio Antiguo),31,5,22.03,0
+83,24,59,Centro MTY (Barrio Antiguo),Cumbres,11,8,22.3,10
+2,27,62,Centrito Valle (San Pedro),Centro MTY (Barrio Antiguo),7,6,23.9,0
+31,27,62,Cumbres,Valle Oriente (San Pedro),27,9,21.99,10
+69,27,62,Centro MTY (Barrio Antiguo),Apodaca (Industrial),6,8,20.67,20
+52,28,63,Centrito Valle (San Pedro),Cumbres,9,11,19.31,10
+47,28,63,Tec de Monterrey (Garza Sada),Centro MTY (Barrio Antiguo),27,10,18.57,10
+65,28,63,Centrito Valle (San Pedro),Apodaca (Industrial),20,7,18.42,10
+82,30,65,Cumbres,Centrito Valle (San Pedro),16,9,22.06,20
+62,31,66,Centro MTY (Barrio Antiguo),Valle Oriente (San Pedro),19,9,19.62,10
+98,31,66,Centro MTY (Barrio Antiguo),San Jerónimo,10,9,21.36,35
+15,33,68,Centrito Valle (San Pedro),Tec de Monterrey (Garza Sada),8,10,22.01,0
+29,34,69,Valle Oriente (San Pedro),Centrito Valle (San Pedro),9,7,24.6,35
+21,34,69,Tec de Monterrey (Garza Sada),Apodaca (Industrial),11,11,23.96,10
+12,34,69,Centro MTY (Barrio Antiguo),Centrito Valle (San Pedro),19,7,23.34,0
+11,36,71,San Jerónimo,San Nicolás,12,7,21.7,0
+23,37,72,Centro MTY (Barrio Antiguo),San Nicolás,29,6,20.94,0
+44,37,72,Centrito Valle (San Pedro),Apodaca (Industrial),18,5,19.65,0
+75,37,72,Centrito Valle (San Pedro),Cumbres,18,5,19.08,10
+30,39,74,Centrito Valle (San Pedro),Cumbres,21,11,27.64,35
+76,40,75,Cumbres,San Nicolás,13,11,24.06,10
+88,40,75,Tec de Monterrey (Garza Sada),San Jerónimo,9,12,24.11,20
+64,40,75,Cumbres,Centrito Valle (San Pedro),9,5,26.35,10
+16,41,76,Valle Oriente (San Pedro),San Nicolás,19,8,24.55,10
+61,41,76,Tec de Monterrey (Garza Sada),Centrito Valle (San Pedro),13,11,26.29,0
+19,41,76,Centrito Valle (San Pedro),Valle Oriente (San Pedro),17,12,18.91,0
+73,42,77,Tec de Monterrey (Garza Sada),Cumbres,9,10,24.41,10
+71,42,77,San Jerónimo,San Nicolás,15,9,26.21,20
+7,44,79,Centro MTY (Barrio Antiguo),Cumbres,5,5,25.3,10
+38,45,80,San Jerónimo,Apodaca (Industrial),16,12,26.64,0
+67,45,80,Centro MTY (Barrio Antiguo),Apodaca (Industrial),25,7,27.26,0
+99,45,80,Tec de Monterrey (Garza Sada),Valle Oriente (San Pedro),9,7,20.31,10
+40,46,81,Tec de Monterrey (Garza Sada),San Jerónimo,9,8,19.9,10
+18,47,82,Valle Oriente (San Pedro),Cumbres,12,11,26.98,10
+51,48,83,Valle Oriente (San Pedro),San Nicolás,10,9,20.04,20
+79,50,85,Centro MTY (Barrio Antiguo),San Nicolás,23,6,25.2,0
+85,50,85,Valle Oriente (San Pedro),Santa Catarina,41,7,24.59,0
+86,51,86,Cumbres,San Nicolás,35,6,26.18,20
+81,51,86,Centrito Valle (San Pedro),San Jerónimo,26,11,24.65,10
+87,51,86,Cumbres,San Jerónimo,26,8,26.07,0
+78,52,87,Valle Oriente (San Pedro),San Jerónimo,3,10,22.31,35
+90,52,87,San Jerónimo,Valle Oriente (San Pedro),3,7,24.56,0
+8,52,87,San Jerónimo,Centro MTY (Barrio Antiguo),9,9,26.29,10
+53,52,87,San Jerónimo,San Nicolás,14,6,18.09,10
+9,53,88,Centro MTY (Barrio Antiguo),San Jerónimo,16,6,18.46,0
+41,53,88,San Jerónimo,Centrito Valle (San Pedro),5,9,22.63,20
+22,53,88,Centro MTY (Barrio Antiguo),Tec de Monterrey (Garza Sada),18,6,24.82,10
+6,54,89,Centro MTY (Barrio Antiguo),Centrito Valle (San Pedro),3,6,21.8,10
+84,55,90,Cumbres,San Nicolás,7,12,22.42,10
+57,55,90,Cumbres,Tec de Monterrey (Garza Sada),7,9,27.32,0
+94,55,90,Valle Oriente (San Pedro),San Nicolás,27,12,24.13,20
+49,59,94,Centrito Valle (San Pedro),Centro MTY (Barrio Antiguo),30,6,24.75,0
+3,63,98,Tec de Monterrey (Garza Sada),San Jerónimo,13,8,23.05,0
+46,64,99,Cumbres,Santa Catarina,1,7,19.9,0
+34,64,99,Cumbres,Tec de Monterrey (Garza Sada),14,8,18.67,0
+10,68,103,Centro MTY (Barrio Antiguo),Centrito Valle (San Pedro),16,8,26.66,10
+50,68,103,Tec de Monterrey (Garza Sada),San Jerónimo,13,5,24.19,10
+66,69,104,Tec de Monterrey (Garza Sada),San Nicolás,25,8,24.82,10
+20,69,104,Tec de Monterrey (Garza Sada),Valle Oriente (San Pedro),9,7,25.92,10
+56,71,106,Centrito Valle (San Pedro),Santa Catarina,6,9,24.12,50
+43,72,107,Tec de Monterrey (Garza Sada),Centrito Valle (San Pedro),7,8,19.66,10
+26,72,107,Valle Oriente (San Pedro),Tec de Monterrey (Garza Sada),17,10,22.89,0
+37,73,108,San Jerónimo,Valle Oriente (San Pedro),8,6,18.97,10
+97,73,108,Centro MTY (Barrio Antiguo),Santa Catarina,12,8,20.75,0
+55,74,109,Centrito Valle (San Pedro),San Nicolás,2,6,26.79,10
+96,74,109,San Jerónimo,Santa Catarina,11,9,25.52,20
+54,77,112,Valle Oriente (San Pedro),Centro MTY (Barrio Antiguo),18,6,23.38,10
+32,77,112,Centro MTY (Barrio Antiguo),Santa Catarina,23,12,19.21,0
+35,78,113,Centro MTY (Barrio Antiguo),Centrito Valle (San Pedro),8,8,20.78,10
+68,78,113,Centrito Valle (San Pedro),Valle Oriente (San Pedro),36,11,18.25,20
+74,81,116,Valle Oriente (San Pedro),San Nicolás,8,5,19.15,50
+4,81,116,Centrito Valle (San Pedro),Apodaca (Industrial),19,8,22.49,0
+24,84,119,Tec de Monterrey (Garza Sada),Cumbres,3,7,23.08,0
+17,86,121,Cumbres,Santa Catarina,2,7,20.65,0
+13,87,122,San Jerónimo,Apodaca (Industrial),23,9,27.9,10
+91,88,123,Tec de Monterrey (Garza Sada),Apodaca (Industrial),1,8,19.76,35
+1,88,123,Cumbres,Centro MTY (Barrio Antiguo),10,5,25.42,0
+60,89,124,Centrito Valle (San Pedro),Cumbres,3,12,20.51,35
+48,90,125,Valle Oriente (San Pedro),Centrito Valle (San Pedro),36,5,27.61,0
+25,94,129,Cumbres,San Jerónimo,6,8,19.53,20
+89,96,131,San Jerónimo,Apodaca (Industrial),15,8,25.18,10
+77,98,133,San Jerónimo,Valle Oriente (San Pedro),14,9,18.44,10
+80,100,135,Centro MTY (Barrio Antiguo),Apodaca (Industrial),6,10,22.02,0
+70,100,135,Tec de Monterrey (Garza Sada),Apodaca (Industrial),5,5,26.59,0
+100,101,136,Cumbres,Valle Oriente (San Pedro),17,6,22.15,0
+93,103,138,Tec de Monterrey (Garza Sada),Santa Catarina,22,7,26.01,10
+58,110,145,Centrito Valle (San Pedro),Cumbres,18,6,26.9,20

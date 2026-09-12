@@ -1,0 +1,4 @@
+osmnx
+pandas
+ortools
+google-genai
