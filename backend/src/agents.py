@@ -88,7 +88,7 @@ class Repartidor:
                         g_neta = round(t_tot - c_gas, 2)
                         r_hr = round((g_neta / max(t_batch, 1)) * 60, 1)
 
-                        if r_hr >= 90.0:
+                        if g_neta > 0:  # Ganancia neta positiva → DeepSeek decide si vale la pena
                             candidatos_internos.append({
                                 "id_opcion": f"BATCH_{c1.id_pedido}_{c2.id_pedido}",
                                 "tipo": "BATCH_ORTOOLS",
@@ -109,8 +109,6 @@ class Repartidor:
             # 2. Generar Candidatos Individuales
             for p in pedidos_disponibles:
                 d_pick, t_pick = _mz.get((self.ubicacion_actual, p.origen), (3.0, 8.0))
-                if d_pick > 4.5 and entorno.factor_surge < 1.6:
-                    continue
 
                 t_pick_real = round(t_pick * entorno.factor_trafico, 1)
                 t_espera = max(0, (p.minuto_aparicion + p.tiempo_preparacion_min) - (entorno.minuto_turno + t_pick_real))
@@ -122,7 +120,7 @@ class Repartidor:
                 g_neta = round(p.tarifa_final_mxn - c_gas, 2)
                 r_hr = round((g_neta / max(t_tot, 1)) * 60, 1)
 
-                if r_hr >= 85.0:
+                if g_neta > 0:  # Ganancia neta positiva → DeepSeek decide
                     candidatos_internos.append({
                         "id_opcion": f"SOLO_{p.id_pedido}",
                         "tipo": "INDIVIDUAL",
