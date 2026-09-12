@@ -49,8 +49,30 @@ def main():
         if log: print(f"⏱️ [Minuto {minuto:03d}] {log}")
         time.sleep(0.01)
 
-    print("\n🏆 RESULTADOS FINALES")
-    print(f"Greedy Neto: ${greedy.ganancia_neta_total:.2f} | OptiGo Neto: ${optigo.ganancia_neta_total:.2f}")
+    print("\n" + "="*60)
+    print("🏆 RESULTADOS FINALES DE LA SIMULACIÓN (120 MINUTOS)")
+    print("="*60)
+    
+    tasa_greedy = ((greedy.pedidos_completados - greedy.pedidos_con_retraso) / max(greedy.pedidos_completados, 1)) * 100
+    tasa_optigo = ((optigo.pedidos_completados - optigo.pedidos_con_retraso) / max(optigo.pedidos_completados, 1)) * 100
+    dif_neto = optigo.ganancia_neta_total - greedy.ganancia_neta_total
+    pct_mejora = ((dif_neto) / max(greedy.ganancia_neta_total, 1)) * 100
+
+    print(f"📊 MÉTRICA                   | GREEDY (Baseline)   | OPTIGO AI (Optimizado)")
+    print(f"----------------------------+---------------------+-----------------------")
+    print(f"💰 Ganancia Neta Total      | ${greedy.ganancia_neta_total:>8.2f} MXN       | ${optigo.ganancia_neta_total:>8.2f} MXN")
+    print(f"💵 Ingresos Brutos          | ${greedy.ingresos_brutos:>8.2f} MXN       | ${optigo.ingresos_brutos:>8.2f} MXN")
+    print(f"⛽ Gasto de Gasolina         | ${greedy.gasto_gasolina_total:>8.2f} MXN       | ${optigo.gasto_gasolina_total:>8.2f} MXN")
+    print(f"📦 Pedidos Completados      | {greedy.pedidos_completados:>9d}           | {optigo.pedidos_completados:>9d}")
+    print(f"👥 Batches Realizados       | {greedy.batches_realizados:>9d}           | {optigo.batches_realizados:>9d}")
+    print(f"⚠️ Pedidos con Retraso SLA   | {greedy.pedidos_con_retraso:>9d}           | {optigo.pedidos_con_retraso:>9d}")
+    print(f"🛑 Penalizaciones SLA       | ${greedy.penalizaciones_sla_total:>8.2f} MXN       | ${optigo.penalizaciones_sla_total:>8.2f} MXN")
+    print(f"🎯 Cumplimiento a Tiempo    | {tasa_greedy:>8.1f}%          | {tasa_optigo:>8.1f}%")
+    print(f"🛣️ Km Totales Recorridos    | {greedy.km_totales:>8.1f} km          | {optigo.km_totales:>8.1f} km")
+    print(f"💨 Km en Vacío (Deadhead)   | {greedy.km_en_vacio:>8.1f} km          | {optigo.km_en_vacio:>8.1f} km")
+    print("="*60)
+    print(f"🚀 DIFERENCIAL OPTIGO: {'+' if dif_neto >= 0 else ''}${dif_neto:.2f} MXN ({'+' if pct_mejora >= 0 else ''}{pct_mejora:.1f}%)")
+    print("="*60)
 
 if __name__ == "__main__":
     main()

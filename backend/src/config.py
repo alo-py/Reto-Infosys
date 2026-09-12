@@ -2,6 +2,12 @@ from typing import Dict, Tuple
 
 DURACION_TURNO = 120
 
+# Parámetros de SLA y Penalizaciones por Retraso
+TOLERANCIA_DEADLINE_MIN = 5           # Margen de gracia sin penalización
+PENALIZACION_RETRASO_SEVERO_MIN = 15  # Umbral para penalización crítica sobre tarifa base
+FACTOR_PENALIZACION_TARIFA = 0.25     # 25% de la tarifa base como penalización por retraso severo
+DESCUENTO_BASE_BATCHING = 8.0         # Descuento realista de tarifa base compartida en 2do pedido de batch
+
 PUNTOS_INTERES: Dict[str, Tuple[float, float]] = {
     "Tec de Monterrey (Garza Sada)": (25.6514, -100.2895),
     "Centro MTY (Barrio Antiguo)": (25.6693, -100.3099),

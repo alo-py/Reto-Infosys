@@ -84,11 +84,14 @@ class ExplicadorOptiGo:
         try:
             system_prompt = (
                 "Eres el Supervisor de Seguridad y Riesgo Operativo de OptiGo en Monterrey. "
-                "Tu prioridad es la integridad del repartidor ante clima extremo (tormentas, calor 40°C, granizo), "
-                "evitar avenidas cerradas o inundadas (ej. Gonzalitos, Morones Prieto, Constitución) "
-                "y garantizar que no se incumpla el deadline del cliente. "
-                "Evalúa la propuesta del Estratega. Si es segura, apruébala. Si cruza avenidas bloqueadas o "
-                "tiene riesgo crítico, vétala y selecciona una opción alternativa más segura de la lista o 'ESPERAR'. "
+                "Tu objetivo es proteger la seguridad del repartidor sin perder oportunidades de alta rentabilidad (Surge). "
+                "En condiciones de lluvia o tormenta con tarifa dinámica, el repartidor DEBE capitalizar las altas tarifas "
+                "mediante viajes seguros. Veta una propuesta ÚNICAMENTE si: "
+                "1) Su origen o destino cruza directamente una avenida cerrada o inundada (ej. Gonzalitos, Morones Prieto, Constitución). "
+                "2) El tiempo estimado excede el deadline del cliente generando penalización SLA severa. "
+                "Si vetas, selecciona activamente la alternativa segura más rentable de la lista que no cruce zonas bloqueadas. "
+                "NUNCA elijas 'ESPERAR' si existen pedidos alternativos seguros; recurre a 'ESPERAR' únicamente si el 100% de las "
+                "opciones cruzan arterias bloqueadas o presentan riesgo crítico intransitable. "
                 "Responde estrictamente en formato JSON con la estructura: "
                 "{\"veredicto\": \"APROBADO\" | \"VETADO_Y_CORREGIDO\", \"opcion_final\": \"<id_opcion>\", "
                 "\"nivel_riesgo\": \"BAJO\" | \"MEDIO\" | \"ALTO\", \"motivo\": \"<1 frase concisa de justificación>\"}"
@@ -169,14 +172,27 @@ class ExplicadorOptiGo:
 
         if cand and avenida_cerrada and (cand.get("zona_destino") in zonas_afectadas or cand.get("zona_origen") in zonas_afectadas):
             # Veto por cruce de zona de avenida cerrada
-            alternativas = [c for c in candidatos if c["id_opcion"] != opcion_propuesta and c.get("zona_destino") not in zonas_afectadas]
+            alternativas = [
+                c for c in candidatos 
+                if c["id_opcion"] != opcion_propuesta 
+                and c.get("id_opcion") != "ESPERAR" 
+                and c.get("zona_destino") not in zonas_afectadas 
+                and c.get("zona_origen") not in zonas_afectadas
+            ]
             if alternativas:
                 segura = max(alternativas, key=lambda x: x.get("rentabilidad_hr", 0.0))
                 return {
                     "veredicto": "VETADO_Y_CORREGIDO",
                     "opcion_final": segura["id_opcion"],
+                    "nivel_riesgo": "MEDIO",
+                    "motivo": f"Cruce evitado en {avenida_cerrada}. Se desvía hacia opción segura {segura['id_opcion']} capturando surge."
+                }
+            else:
+                return {
+                    "veredicto": "VETADO_Y_CORREGIDO",
+                    "opcion_final": "ESPERAR",
                     "nivel_riesgo": "ALTO",
-                    "motivo": f"Cruce vetado por bloqueo vial en {avenida_cerrada}. Se desvía hacia {segura['id_opcion']}."
+                    "motivo": f"Todas las rutas cruzan {avenida_cerrada}. Espera preventiva."
                 }
 
         return {

@@ -61,3 +61,6 @@ MANIFEST
 venv/
 ENV/
 .pytest_cache/
+*.sqlite3
+db.sqlite3
+cache/

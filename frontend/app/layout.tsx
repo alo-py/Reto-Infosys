@@ -6,7 +6,11 @@ export const metadata: Metadata = {
   description: "OptiGo is a travel optimization platform that helps you plan your trips efficiently and cost-effectively. Discover the best routes, transportation options, and travel tips to make your journey smoother and more enjoyable.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="es"

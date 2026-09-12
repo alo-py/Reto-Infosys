@@ -4,3 +4,8 @@ ortools
 openai
 python-dotenv
 scikit-learn
+django>=5.0,<6.0
+djangorestframework
+djangorestframework-simplejwt
+django-cors-headers
+psycopg[binary]
