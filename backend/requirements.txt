@@ -1,5 +1,6 @@
 osmnx
 pandas
 ortools
-google-genai
+openai
+python-dotenv
 scikit-learn
