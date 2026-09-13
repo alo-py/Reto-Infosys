@@ -62,23 +62,34 @@ export default function RegisterPage() {
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    // Validation
-    if (!formData.nombre.trim() || !formData.apellidos.trim()) {
+    // Strict Validation
+    const cleanNombre = formData.nombre.trim();
+    const cleanApellidos = formData.apellidos.trim();
+    const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanPassword = formData.password;
+
+    if (!cleanNombre || !cleanApellidos) {
       setErrorMessage('First and last name are required.');
       return;
     }
 
-    if (!formData.email.trim()) {
-      setErrorMessage('Email address is required.');
+    if (cleanNombre.length > 100 || cleanApellidos.length > 100) {
+      setErrorMessage('First and last name cannot exceed 100 characters.');
       return;
     }
 
-    if (formData.password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
+    if (cleanPassword.trim().length < 6) {
+      setErrorMessage('Password must be at least 6 characters (cannot be only whitespace).');
+      return;
+    }
+
+    if (cleanPassword !== formData.confirmPassword) {
       setErrorMessage('Passwords do not match.');
       return;
     }
@@ -90,15 +101,17 @@ export default function RegisterPage() {
 
     setLoading(true);
 
+    const safeFuel = Math.max(0, Number(formData.consumo_gasolina_km) || 0);
+
     const payload: RegisterPayload = {
-      nombre: formData.nombre.trim(),
-      apellidos: formData.apellidos.trim(),
-      email: formData.email.trim().toLowerCase(),
-      telefono: formData.telefono.trim() || undefined,
+      nombre: cleanNombre,
+      apellidos: cleanApellidos,
+      email: cleanEmail,
+      telefono: formData.telefono.trim().slice(0, 20) || undefined,
       tipo_vehiculo: formData.tipo_vehiculo,
       zona_base: formData.zona_base,
-      consumo_gasolina_km: formData.consumo_gasolina_km,
-      password: formData.password,
+      consumo_gasolina_km: safeFuel,
+      password: cleanPassword,
     };
 
     try {
@@ -171,6 +184,7 @@ export default function RegisterPage() {
                   id="nombre"
                   type="text"
                   required
+                  maxLength={100}
                   value={formData.nombre}
                   onChange={(e) =>
                     setFormData({ ...formData, nombre: e.target.value })
@@ -192,6 +206,7 @@ export default function RegisterPage() {
                 id="apellidos"
                 type="text"
                 required
+                maxLength={100}
                 value={formData.apellidos}
                 onChange={(e) =>
                   setFormData({ ...formData, apellidos: e.target.value })
@@ -218,6 +233,7 @@ export default function RegisterPage() {
                   id="email"
                   type="email"
                   required
+                  maxLength={100}
                   value={formData.email}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
@@ -242,6 +258,7 @@ export default function RegisterPage() {
                 <input
                   id="telefono"
                   type="tel"
+                  maxLength={20}
                   value={formData.telefono}
                   onChange={(e) =>
                     setFormData({ ...formData, telefono: e.target.value })
@@ -358,6 +375,7 @@ export default function RegisterPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   required
+                  maxLength={128}
                   value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
@@ -394,6 +412,7 @@ export default function RegisterPage() {
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   required
+                  maxLength={128}
                   value={formData.confirmPassword}
                   onChange={(e) =>
                     setFormData({ ...formData, confirmPassword: e.target.value })

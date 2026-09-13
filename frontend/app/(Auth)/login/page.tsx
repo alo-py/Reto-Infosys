@@ -25,30 +25,56 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
+
+  // Countdown timer for lockout
+  React.useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (lockoutSeconds > 0) return;
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
       setErrorMessage('Please enter both email and password.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
 
     setLoading(true);
     try {
-      await loginUser({ email, password });
+      await loginUser({ email: cleanEmail, password });
       setSuccessMessage('Login successful! Redirecting to driver cockpit...');
+      setFailedAttempts(0);
       setTimeout(() => {
         router.push('/driver');
       }, 700);
     } catch (err: unknown) {
-      if (err instanceof Error) {
+      const nextFailed = failedAttempts + 1;
+      setFailedAttempts(nextFailed);
+
+      if (nextFailed >= 5) {
+        setLockoutSeconds(30);
+        setErrorMessage('Too many failed attempts. Login locked for 30 seconds to protect your account.');
+      } else if (err instanceof Error) {
         if (err.message.includes('not a function')) {
           setErrorMessage('Session module updated. Please reload the page (Ctrl + Shift + R) and try again.');
         } else {
-          setErrorMessage(err.message);
+          setErrorMessage(`${err.message} (${5 - nextFailed} attempts remaining before temporary lock)`);
         }
       } else {
         setErrorMessage('Failed to sign in. Please verify your credentials.');
@@ -132,6 +158,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 required
+                maxLength={100}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="courier@example.com"
@@ -161,6 +188,7 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 required
+                maxLength={128}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -196,10 +224,12 @@ export default function LoginPage() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || lockoutSeconds > 0}
             className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none mt-2"
           >
-            {loading ? (
+            {lockoutSeconds > 0 ? (
+              <span>Locked (Retry in {lockoutSeconds}s)</span>
+            ) : loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Authenticating...</span>

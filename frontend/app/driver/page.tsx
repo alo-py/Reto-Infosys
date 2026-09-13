@@ -418,9 +418,11 @@ export default function DriverAppPage() {
   const [isGreedyPlaying, setIsGreedyPlaying] = useState<boolean>(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
 
-  // Independent timers
+  // Independent timers & concurrency locks
   const optigoTimerRef = useRef<NodeJS.Timeout | null>(null);
   const greedyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isOptigoSteppingRef = useRef<boolean>(false);
+  const isGreedySteppingRef = useRef<boolean>(false);
 
   // Check Django backend connectivity on load and every 15s
   useEffect(() => {
@@ -460,17 +462,24 @@ export default function DriverAppPage() {
   // Real-time step execution supporting both live Django backend and client engine fallback
   const stepSimulation = useCallback(async (tipo: 'OPTIGO_AI' | 'GREEDY', mins: number = 1) => {
     const isOptigo = tipo === 'OPTIGO_AI';
+    const lockRef = isOptigo ? isOptigoSteppingRef : isGreedySteppingRef;
+
+    // Prevent race conditions and overlapping network requests
+    if (lockRef.current) return;
+    lockRef.current = true;
+
     const backendIdRef = isOptigo ? optigoBackendIdRef : greedyBackendIdRef;
     const setShift = isOptigo ? setOptigoState : setGreedyState;
     const setIsPlaying = isOptigo ? setIsOptigoPlaying : setIsGreedyPlaying;
 
-    if (isBackendConnected) {
-      try {
-        // If not started on Django backend yet, create the shift in PostgreSQL/SQLite
-        if (!backendIdRef.current) {
-          const created = await startBackendShift(tipo, 120);
-          backendIdRef.current = created.id;
-        }
+    try {
+      if (isBackendConnected) {
+        try {
+          // If not started on Django backend yet, create the shift in PostgreSQL/SQLite
+          if (!backendIdRef.current) {
+            const created = await startBackendShift(tipo, 120);
+            backendIdRef.current = created.id;
+          }
 
         // Advance simulation on Django (runs OR-Tools, OSMnx, Kaggle, PostgreSQL)
         const stepRes = await stepBackendShift(backendIdRef.current, mins);
@@ -585,12 +594,15 @@ export default function DriverAppPage() {
       }
     }
 
-    // Fallback: Client simulation engine
-    setShift((prev) => {
-      const next = advanceSimulation(prev, scenarioRef.current, mins);
-      if (next.estadoTurno === 'FINALIZADO') setIsPlaying(false);
-      return next;
-    });
+      // Fallback: Client simulation engine
+      setShift((prev) => {
+        const next = advanceSimulation(prev, scenarioRef.current, mins);
+        if (next.estadoTurno === 'FINALIZADO') setIsPlaying(false);
+        return next;
+      });
+    } finally {
+      lockRef.current = false;
+    }
   }, [isBackendConnected]);
 
   // OptiGo AI auto-run interval

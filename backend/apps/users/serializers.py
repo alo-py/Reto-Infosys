@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import serializers
 from apps.users.models import Usuario
 
@@ -19,6 +20,9 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
+    consumo_gasolina_km = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0.00"), required=False
+    )
 
     class Meta:
         model = Usuario
