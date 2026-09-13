@@ -357,6 +357,21 @@ export default function DriverAppPage() {
   }, [isGreedyPlaying]);
 
 
+  // Tracking if summary pop-up was already displayed for each agent
+  const hasShownOptigoSummary = useRef<boolean>(false);
+  const hasShownGreedySummary = useRef<boolean>(false);
+
+  // Auto-show summary popup the FIRST time a completed simulation (timer at 0) is viewed
+  useEffect(() => {
+    if (activeTab === 'OPTIGO_AI' && optigoState.estadoTurno === 'FINALIZADO' && !hasShownOptigoSummary.current) {
+      hasShownOptigoSummary.current = true;
+      setIsSummaryOpen(true);
+    } else if (activeTab === 'GREEDY' && greedyState.estadoTurno === 'FINALIZADO' && !hasShownGreedySummary.current) {
+      hasShownGreedySummary.current = true;
+      setIsSummaryOpen(true);
+    }
+  }, [activeTab, optigoState.estadoTurno, greedyState.estadoTurno]);
+
   // Current states based on active tab
   const currentShiftState = activeTab === 'OPTIGO_AI' ? optigoState : greedyState;
   const otherShiftState = activeTab === 'OPTIGO_AI' ? greedyState : optigoState;
@@ -384,16 +399,20 @@ export default function DriverAppPage() {
   const handleResetShift = () => {
     if (activeTab === 'OPTIGO_AI') {
       setIsOptigoPlaying(false);
+      hasShownOptigoSummary.current = false;
       setOptigoState(createInitialState('OPTIGO_AI'));
     } else {
       setIsGreedyPlaying(false);
+      hasShownGreedySummary.current = false;
       setGreedyState(createInitialState('GREEDY'));
     }
+    setIsSummaryOpen(false);
   };
 
   const handleEndShift = () => {
     if (activeTab === 'OPTIGO_AI') {
       setIsOptigoPlaying(false);
+      hasShownOptigoSummary.current = true;
       setOptigoState((prev) => ({
         ...prev,
         estadoTurno: 'FINALIZADO',
@@ -401,6 +420,7 @@ export default function DriverAppPage() {
       }));
     } else {
       setIsGreedyPlaying(false);
+      hasShownGreedySummary.current = true;
       setGreedyState((prev) => ({
         ...prev,
         estadoTurno: 'FINALIZADO',
@@ -410,7 +430,16 @@ export default function DriverAppPage() {
     setIsSummaryOpen(true);
   };
 
-  const handleSelectTab = (tab: 'OPTIGO_AI' | 'GREEDY') => {
+  const handleSelectTab = (tab: 'OPTIGO_AI' | 'GREEDY', keepModalOpen: boolean = false) => {
+    if (!keepModalOpen) {
+      setIsSummaryOpen(false);
+    } else {
+      if (tab === 'OPTIGO_AI' && optigoState.estadoTurno === 'FINALIZADO') {
+        hasShownOptigoSummary.current = true;
+      } else if (tab === 'GREEDY' && greedyState.estadoTurno === 'FINALIZADO') {
+        hasShownGreedySummary.current = true;
+      }
+    }
     setActiveTab(tab);
   };
 
@@ -445,7 +474,7 @@ export default function DriverAppPage() {
         onStepForward={handleStepForward}
         onResetShift={handleResetShift}
         onEndShift={handleEndShift}
-        onSelectTab={handleSelectTab}
+        onSelectTab={(tab) => handleSelectTab(tab, false)}
         onOpenComparison={() => setIsSummaryOpen(true)}
       />
 
@@ -472,7 +501,7 @@ export default function DriverAppPage() {
         shiftState={currentShiftState}
         comparisonState={otherShiftState}
         activeTab={activeTab}
-        onSwitchTab={handleSelectTab}
+        onSwitchTab={(tab) => handleSelectTab(tab, true)}
         onClose={() => setIsSummaryOpen(false)}
         onRestartShift={handleResetShift}
       />

@@ -51,6 +51,12 @@ export default function DriverHeader({
   const min = shiftState.minuto % 60;
   const timeClock = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} PM`;
 
+  // Countdown timer (time left until 0)
+  const remainingMins = Math.max(0, shiftState.duracionTotal - shiftState.minuto);
+  const remHours = Math.floor(remainingMins / 60);
+  const remMins = remainingMins % 60;
+  const timerCountdown = `${remHours.toString().padStart(2, '0')}:${remMins.toString().padStart(2, '0')}`;
+
   return (
     <header className="w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
       {/* 1. Connection Status and Dual Simulation Tabs */}
@@ -134,9 +140,16 @@ export default function DriverHeader({
           <span className="flex items-center gap-1 font-mono font-medium">
             <Clock className="w-3.5 h-3.5 text-emerald-300" />
             <span>{timeClock}</span>
+            <span className="text-slate-400 text-[11px] ml-1 bg-slate-950/50 px-2 py-0.5 rounded-md border border-white/10">
+              Timer: {timerCountdown}
+            </span>
           </span>
-          <span className="font-semibold text-white">
-            Minute {shiftState.minuto} / {shiftState.duracionTotal} min
+          <span className="font-semibold text-white text-xs">
+            {remainingMins === 0 ? (
+              <span className="text-emerald-300 font-bold">Shift Ended (0m remaining)</span>
+            ) : (
+              <span>{remainingMins}m remaining</span>
+            )}
           </span>
         </div>
         <div className="w-full h-2.5 bg-slate-950/50 rounded-full overflow-hidden border border-white/10 p-0.5">
