@@ -1,14 +1,19 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import OptiGoLogo from '@/public/Assets/OptiGo_Logo.png';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="min-h-screen flex flex-col justify-between relative overflow-hidden bg-slate-950 text-slate-100">
       {/* Dynamic Background Glow Effects */}
@@ -49,7 +54,7 @@ export default function AuthLayout({
           className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all duration-200"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Home</span>
+          <span>{t('common.backToHome')}</span>
         </Link>
       </header>
 
