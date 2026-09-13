@@ -13,23 +13,35 @@ import {
 import { ActiveShiftState } from './types';
 
 interface DriverHeaderProps {
+  activeTab: 'OPTIGO_AI' | 'GREEDY';
   shiftState: ActiveShiftState;
   isPlaying: boolean;
+  isOptigoRunning: boolean;
+  isGreedyRunning: boolean;
+  isOptigoFinished: boolean;
+  isGreedyFinished: boolean;
   onTogglePlay: () => void;
   onStepForward: (mins: number) => void;
   onResetShift: () => void;
   onEndShift: () => void;
-  onChangeAgent: (tipo: 'OPTIGO_AI' | 'GREEDY') => void;
+  onSelectTab: (tab: 'OPTIGO_AI' | 'GREEDY') => void;
+  onOpenComparison?: () => void;
 }
 
 export default function DriverHeader({
+  activeTab,
   shiftState,
   isPlaying,
+  isOptigoRunning,
+  isGreedyRunning,
+  isOptigoFinished,
+  isGreedyFinished,
   onTogglePlay,
   onStepForward,
   onResetShift,
   onEndShift,
-  onChangeAgent,
+  onSelectTab,
+  onOpenComparison,
 }: DriverHeaderProps) {
   const isOnline = shiftState.estadoConexion !== 'DESCONECTADO';
   const progressPct = Math.min(100, Math.round((shiftState.minuto / shiftState.duracionTotal) * 100));
@@ -41,8 +53,8 @@ export default function DriverHeader({
 
   return (
     <header className="w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-      {/* 1. Connection Status and Driver AI Mode */}
-      <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+      {/* 1. Connection Status and Dual Simulation Tabs */}
+      <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start flex-wrap">
         <div className="flex items-center gap-2.5 bg-slate-950/40 border border-white/15 px-3 py-1.5 rounded-2xl backdrop-blur-md">
           <span className={`w-3 h-3 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_10px_#10b981] animate-pulse' : 'bg-slate-500'}`} />
           <div className="text-left">
@@ -53,33 +65,67 @@ export default function DriverHeader({
           </div>
         </div>
 
-        {/* Agent Toggle (OptiGo AI vs Greedy) */}
-        <div className="flex items-center bg-slate-950/40 p-1 rounded-2xl border border-white/15 backdrop-blur-md">
+        {/* Dual Simulation Tabs (OptiGo AI vs Greedy Base) */}
+        <div className="flex items-center bg-slate-950/60 p-1 rounded-2xl border border-white/20 backdrop-blur-md shadow-inner gap-1">
           <button
             type="button"
-            onClick={() => onChangeAgent('OPTIGO_AI')}
-            className={`px-3 py-1 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all ${
-              shiftState.tipoAgente === 'OPTIGO_AI'
-                ? 'bg-emerald-500 text-slate-950 shadow-md'
-                : 'text-slate-300 hover:text-white'
+            onClick={() => onSelectTab('OPTIGO_AI')}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-2 transition-all relative ${
+              activeTab === 'OPTIGO_AI'
+                ? 'bg-linear-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md scale-[1.02]'
+                : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
             <Bot className="w-3.5 h-3.5" />
             <span>OptiGo AI</span>
+            {isOptigoRunning && (
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            )}
+            {isOptigoFinished && (
+              <span className="text-[9px] bg-emerald-950/90 text-emerald-300 px-1 py-0.2 rounded font-mono border border-emerald-400/40">
+                ✓ Done
+              </span>
+            )}
           </button>
+
           <button
             type="button"
-            onClick={() => onChangeAgent('GREEDY')}
-            className={`px-2.5 py-1 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all ${
-              shiftState.tipoAgente === 'GREEDY'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-300 hover:text-white'
+            onClick={() => onSelectTab('GREEDY')}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-2 transition-all relative ${
+              activeTab === 'GREEDY'
+                ? 'bg-linear-to-r from-amber-500 to-orange-400 text-slate-950 shadow-md scale-[1.02]'
+                : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
             <User className="w-3.5 h-3.5" />
             <span>Greedy Base</span>
+            {isGreedyRunning && (
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+            )}
+            {isGreedyFinished && (
+              <span className="text-[9px] bg-amber-950/90 text-amber-300 px-1 py-0.2 rounded font-mono border border-amber-400/40">
+                ✓ Done
+              </span>
+            )}
           </button>
         </div>
+
+        {onOpenComparison && (
+          <button
+            type="button"
+            onClick={onOpenComparison}
+            className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-purple-500/25 hover:bg-purple-500/35 text-purple-200 border border-purple-400/30 flex items-center gap-1.5 shadow-sm transition-all"
+            title="Compare dual simulation results"
+          >
+            <span>Compare Results</span>
+          </button>
+        )}
       </div>
 
       {/* 2. Shift Progress Bar & Clock */}
