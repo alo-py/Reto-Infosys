@@ -5,9 +5,7 @@ import {
   MapPin, 
   ArrowRight, 
   Sparkles, 
-  ShieldCheck, 
   Layers, 
-  Clock, 
   DollarSign 
 } from 'lucide-react';
 import { ActiveShiftState } from './types';
@@ -27,14 +25,14 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
             <Package className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <div className="text-sm font-bold text-white">Buscando Ofertas Cercanas</div>
+            <div className="text-sm font-bold text-white">Searching Nearby Orders</div>
             <div className="text-xs text-slate-300">
-              Ubicación actual: <strong className="text-emerald-200">{shiftState.ubicacionActual}</strong>
+              Current location: <strong className="text-emerald-200">{shiftState.ubicacionActual}</strong>
             </div>
           </div>
         </div>
         <div className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-400/30 animate-pulse">
-          Disponible
+          Available
         </div>
       </div>
     );
@@ -44,26 +42,26 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
 
   return (
     <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-5 shadow-xl space-y-4">
-      {/* 1. Header de la Orden */}
+      {/* 1. Order Header */}
       <div className="flex justify-between items-center border-b border-white/15 pb-3">
         <div className="flex items-center gap-2">
           {isBatch ? (
             <div className="px-2.5 py-1 rounded-xl bg-purple-500/30 text-purple-200 text-xs font-bold border border-purple-400/40 flex items-center gap-1.5 shadow-sm">
               <Layers className="w-3.5 h-3.5" />
-              <span>Smart Batch (2 Pedidos)</span>
+              <span>Smart Batch (2 Orders)</span>
             </div>
           ) : (
             <div className="px-2.5 py-1 rounded-xl bg-emerald-500/30 text-emerald-200 text-xs font-bold border border-emerald-400/40 flex items-center gap-1.5 shadow-sm">
               <Package className="w-3.5 h-3.5" />
-              <span>Pedido Individual</span>
+              <span>Single Order</span>
             </div>
           )}
           <span className="text-xs font-medium text-slate-300">
-            {isBatch ? 'Google OR-Tools VRPTW' : 'Ruta Directa'}
+            {isBatch ? 'Google OR-Tools VRPTW' : 'Direct Route'}
           </span>
         </div>
 
-        {/* Tarifa de la entrega */}
+        {/* Fare & Tips */}
         <div className="text-right">
           <div className="text-base font-black text-white flex items-center justify-end gap-0.5">
             <DollarSign className="w-4 h-4 text-emerald-300" />
@@ -72,18 +70,18 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
           </div>
           {orden.propinaTotal > 0 && (
             <div className="text-[10px] text-emerald-300 font-medium">
-              Incluye +${orden.propinaTotal.toFixed(2)} propina
+              Includes +${orden.propinaTotal.toFixed(2)} tip
             </div>
           )}
         </div>
       </div>
 
-      {/* 2. Secuencia de Ruta (Pickups y Entregas) */}
+      {/* 2. Route Waypoints (Pickups and Drop-offs) */}
       <div className="space-y-2">
         <div className="flex items-start gap-2.5">
           <div className="mt-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-slate-900 shrink-0" />
           <div className="text-xs">
-            <span className="text-[10px] text-slate-400 uppercase font-mono">Restaurante (Pickup):</span>
+            <span className="text-[10px] text-slate-400 uppercase font-mono">Restaurant (Pickup):</span>
             <div className="font-semibold text-white">{orden.origen}</div>
           </div>
         </div>
@@ -93,18 +91,18 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
         <div className="flex items-start gap-2.5">
           <div className="mt-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900 shrink-0" />
           <div className="text-xs">
-            <span className="text-[10px] text-slate-400 uppercase font-mono">Destino (Entrega):</span>
+            <span className="text-[10px] text-slate-400 uppercase font-mono">Destination (Drop-off):</span>
             <div className="font-semibold text-white">{orden.destino}</div>
           </div>
         </div>
       </div>
 
-      {/* 3. Trazabilidad Agéntica (DeepSeek Estratega + Supervisor) */}
+      {/* 3. DeepSeek Dual-Agent Deliberation */}
       {orden.logExplicativo && (
         <div className="bg-slate-950/50 border border-white/15 rounded-2xl p-3 text-xs space-y-1.5">
           <div className="flex items-center gap-1.5 text-emerald-300 font-semibold text-[11px]">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Deliberación del Sistema Dual DeepSeek:</span>
+            <span>DeepSeek Dual-Agent Deliberation:</span>
           </div>
           <p className="text-[11px] text-slate-200 leading-relaxed font-sans">
             {orden.logExplicativo}

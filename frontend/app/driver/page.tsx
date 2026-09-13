@@ -23,7 +23,7 @@ const DriverMap = dynamic(
     loading: () => (
       <div className="w-full h-[540px] rounded-3xl bg-slate-950/80 border border-white/20 flex flex-col items-center justify-center text-slate-300 gap-3">
         <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs font-mono text-emerald-300">Cargando mapa vial de Monterrey...</p>
+        <p className="text-xs font-mono text-emerald-300">Loading Monterrey road network...</p>
       </div>
     )
   }
@@ -60,7 +60,7 @@ const ESTADO_INICIAL: ActiveShiftState = {
   kmTotales: 0.0,
   kmVacio: 0.0,
 
-  clima: "☀️ CALOR_EXTREMO (39°C)",
+  clima: "☀️ EXTREME_HEAT (39°C)",
   temperatura: 39,
   factorTrafico: 1.10,
   factorSurge: 1.0,
@@ -77,7 +77,7 @@ export default function DriverAppPage() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Función para avanzar la simulación en N minutos
+  // Function to advance simulation by N minutes
   const stepSimulation = useCallback((minutosAvance: number = 1) => {
     setShiftState((prev) => {
       if (prev.estadoTurno === 'FINALIZADO') return prev;
@@ -85,7 +85,7 @@ export default function DriverAppPage() {
       const nuevoMinuto = Math.min(prev.minuto + minutosAvance, prev.duracionTotal);
       const isFinished = nuevoMinuto >= prev.duracionTotal;
 
-      // Eventos meteorológicos dinámicos simulados
+      // Simulated weather events
       let clima = prev.clima;
       let temp = prev.temperatura;
       let trafico = 1.15;
@@ -94,17 +94,17 @@ export default function DriverAppPage() {
       let zonasAfectadas = prev.zonasAfectadas;
 
       if (nuevoMinuto >= 35 && nuevoMinuto <= 75) {
-        clima = "🌧️ TORMENTA_SEVERA (Encharcamientos)";
+        clima = "🌧️ SEVERE_STORM (Flooding risk)";
         temp = 26;
         trafico = 1.65;
         surge = 1.55;
       } else if (nuevoMinuto > 75) {
-        clima = "🌦️ LLUVIA_LIGERA";
+        clima = "🌦️ LIGHT_RAIN";
         temp = 29;
         trafico = 1.25;
         surge = 1.20;
       } else {
-        clima = "☀️ CALOR_EXTREMO (40°C)";
+        clima = "☀️ EXTREME_HEAT (40°C)";
         temp = 40;
         trafico = nuevoMinuto >= 40 ? 1.25 : 1.10;
         surge = 1.0;
@@ -206,14 +206,14 @@ export default function DriverAppPage() {
         let log = "";
         if (prev.tipoAgente === 'OPTIGO_AI') {
           if (avenidaCerrada) {
-            log = `🛡️ [SUPERVISOR VETO]: Ruta directa cruza ${avenidaCerrada} bloqueada. Desvío inteligente hacia ${destino} aprobado (+61% rentabilidad).`;
+            log = `🛡️ [SUPERVISOR VETO]: Direct route crosses blocked ${avenidaCerrada}. Safe rerouting towards ${destino} approved (+61% profitability).`;
           } else if (isBatch) {
-            log = `🤖 [ESTRATEGA]: Batch dual de 2 pedidos resuelto con Google OR-Tools (${tarifaTotal} MXN).`;
+            log = `🤖 [STRATEGIST]: Dual batch of 2 orders solved with Google OR-Tools (${tarifaTotal} MXN).`;
           } else {
-            log = `🤖 [ESTRATEGA]: Viaje individual de alta tasa $/hr (${origen} -> ${destino}) verificado con SLA puntual.`;
+            log = `🤖 [STRATEGIST]: High $/hr single delivery (${origen} -> ${destino}) verified with on-time SLA.`;
           }
         } else {
-          log = `Greedy asignó automáticamente la primera orden disponible hacia ${destino} sin optimizar desvíos.`;
+          log = `Greedy baseline automatically took first available order towards ${destino} without detour optimization.`;
         }
 
         ordenActiva = {
@@ -319,7 +319,7 @@ export default function DriverAppPage() {
           className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 px-3.5 py-1.5 rounded-xl border border-white/20 backdrop-blur-md transition-all"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Volver al Inicio</span>
+          <span>Back to Home</span>
         </Link>
 
         <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-slate-950/60 border border-white/15 px-3 py-1.5 rounded-xl backdrop-blur-md">

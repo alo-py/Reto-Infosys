@@ -16,7 +16,7 @@ export default function Navbar() {
                         <Link href="/" className="text-white hover:bg-slate-200/30 hover:text-gray-800 p-2 rounded-lg text-sm font-medium">Home</Link>
                         <Link href="/driver" className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold px-3 py-2 rounded-xl text-xs md:text-sm flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02]">
                             <Navigation className="w-3.5 h-3.5" />
-                            <span>App Conductor</span>
+                            <span>Driver App</span>
                         </Link>
                         <div className="flex items-center">
                             <Link href="/login">
