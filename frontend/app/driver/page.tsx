@@ -356,18 +356,6 @@ export default function DriverAppPage() {
     };
   }, [isGreedyPlaying]);
 
-  // Auto-open summary modal if the active tab finishes
-  useEffect(() => {
-    if (optigoState.estadoTurno === 'FINALIZADO' && activeTab === 'OPTIGO_AI') {
-      setIsSummaryOpen(true);
-    }
-  }, [optigoState.estadoTurno, activeTab]);
-
-  useEffect(() => {
-    if (greedyState.estadoTurno === 'FINALIZADO' && activeTab === 'GREEDY') {
-      setIsSummaryOpen(true);
-    }
-  }, [greedyState.estadoTurno, activeTab]);
 
   // Current states based on active tab
   const currentShiftState = activeTab === 'OPTIGO_AI' ? optigoState : greedyState;
