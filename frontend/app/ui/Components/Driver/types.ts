@@ -35,11 +35,25 @@ export interface OrderItem {
   tripTimeMin: number;
 }
 
+export interface DriverDirectives {
+  autonomyMode: 'AUTONOMOUS' | 'COPILOT';
+  allowBatches: boolean;
+  maxDeadheadKm: number;
+  avoidFloodedAvenues: boolean;
+}
+
+export const DEFAULT_DRIVER_DIRECTIVES: DriverDirectives = {
+  autonomyMode: 'AUTONOMOUS',
+  allowBatches: true,
+  maxDeadheadKm: 6.0,
+  avoidFloodedAvenues: true,
+};
+
 export interface ActiveShiftState {
   minuto: number;
   duracionTotal: number;
   estadoTurno: 'EN_CURSO' | 'PAUSADO' | 'FINALIZADO';
-  estadoConexion: 'DISPONIBLE' | 'EN_CAMINO_PICKUP' | 'EN_ESPERA_RESTAURANTE' | 'EN_CAMINO_DELIVERY' | 'DESCONECTADO';
+  estadoConexion: 'DISPONIBLE' | 'OFERTA_ENTRANTE' | 'EN_CAMINO_PICKUP' | 'EN_ESPERA_RESTAURANTE' | 'EN_CAMINO_DELIVERY' | 'DESCONECTADO';
   tipoAgente: 'OPTIGO_AI' | 'GREEDY';
   ubicacionActual: ZoneName;
   coordenadasActuales: LocationCoord;
@@ -66,6 +80,28 @@ export interface ActiveShiftState {
   // Dynamic Simulation Timing & Incentives
   disponibleEnMinuto?: number;
   bonoDesbloqueado?: boolean;
+
+  // Driver Policy Directives & Co-Pilot
+  directives: DriverDirectives;
+
+  // Oferta entrante en espera de decisión (Co-Pilot Mode)
+  ofertaPendiente?: {
+    tipo: 'INDIVIDUAL' | 'BATCH';
+    origen: ZoneName;
+    destino: ZoneName;
+    paradasSecuencia: ZoneName[];
+    duracionViaje: number;
+    tarifaTotal: number;
+    propinaTotal: number;
+    distanciaKmTotal: number;
+    kmVacioViaje: number;
+    hasPickupTransition: boolean;
+    transicionDesde?: ZoneName;
+    logExplicativo: string;
+    recomendacionIA: 'ACEPTAR' | 'RECHAZAR';
+    motivoIA: string;
+    rentabilidadEstimadaHr: number;
+  } | null;
 
   // Orden activa o batch en ejecución
   ordenActiva: {

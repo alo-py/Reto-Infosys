@@ -14,7 +14,9 @@ import ScenarioSelectorModal from '@/app/ui/Components/Driver/ScenarioSelectorMo
 import { 
   ActiveShiftState, 
   MONTERREY_NODES,
-  ZoneName 
+  ZoneName,
+  DEFAULT_DRIVER_DIRECTIVES,
+  DriverDirectives
 } from '@/app/ui/Components/Driver/types';
 import { 
   buildFullStreetSequence, 
@@ -117,6 +119,9 @@ const createInitialState = (
 
     disponibleEnMinuto: 0,
     bonoDesbloqueado: false,
+
+    directives: { ...DEFAULT_DRIVER_DIRECTIVES },
+    ofertaPendiente: null,
 
     ordenActiva: null,
   };
@@ -226,6 +231,25 @@ function advanceSimulation(
   let estadoConexion = prev.estadoConexion;
   let disponibleEnMinuto = prev.disponibleEnMinuto ?? 0;
   let bonoDesbloqueado = prev.bonoDesbloqueado ?? false;
+  let ofertaPendiente = prev.ofertaPendiente ?? null;
+  const isCoPilot = prev.directives?.autonomyMode === 'COPILOT';
+
+  // If in Co-Pilot mode and an offer is currently pending driver decision, wait
+  if (ofertaPendiente && !ordenActiva && !isFinished) {
+    return {
+      ...prev,
+      minuto: nuevoMinuto,
+      estadoTurno: isFinished ? 'FINALIZADO' : 'EN_CURSO',
+      estadoConexion: 'OFERTA_ENTRANTE',
+      clima,
+      temperatura: temp,
+      factorTrafico: trafico,
+      factorSurge: surge,
+      avenidaCerrada,
+      zonasAfectadas,
+      coordenadasActuales,
+    };
+  }
 
   // Check if active order completes
   if (ordenActiva && nuevoMinuto >= ordenActiva.minutoFinViaje) {
@@ -371,7 +395,8 @@ function advanceSimulation(
         prev.tipoAgente === 'OPTIGO_AI',
         surge,
         avenidaCerrada,
-        trafico
+        trafico,
+        prev.directives
       );
       const streetPath = buildFullStreetSequence(plan.paradasSecuencia);
       const tarifaTotal = Number(((plan.tarifaBase * surge) + plan.propina).toFixed(2));
@@ -379,31 +404,63 @@ function advanceSimulation(
       const tramoActualOrigen = paradas[0];
       const tramoActualDestino = paradas[1];
 
-      ordenActiva = {
-        tipo: plan.tipo,
-        pedidos: [],
-        origen: plan.origen,
-        destino: plan.destino,
-        paradasSecuencia: plan.paradasSecuencia,
-        minutoInicioViaje: nuevoMinuto,
-        minutoFinViaje: nuevoMinuto + plan.duracionViaje,
-        tarifaTotal,
-        propinaTotal: plan.propina,
-        distanciaKmTotal: plan.distanciaKmTotal,
-        kmVacioViaje: plan.kmVacioViaje,
-        logExplicativo: plan.logExplicativo,
-        hasPickupTransition: plan.hasPickupTransition,
-        transicionDesde: plan.transicionDesde,
-        faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
-        streetPath,
-        estaDesviado: plan.estaDesviado,
-        desvioExplicacion: plan.desvioExplicacion,
-        indiceTramoActual: 0,
-        tramoActualOrigen,
-        tramoActualDestino,
-      };
+      // If in Co-Pilot mode, present offer to driver for manual approval
+      if (isCoPilot) {
+        const rentabilidadEstimadaHr = Math.round((tarifaTotal / Math.max(plan.duracionViaje, 1)) * 60);
+        const crossesBlocked = Boolean(avenidaCerrada && routeIntersectsBlockage(plan.paradasSecuencia, avenidaCerrada));
+        let recomendacionIA: 'ACEPTAR' | 'RECHAZAR' = 'ACEPTAR';
+        let motivoIA = `DeepSeek OR-Tools: $${rentabilidadEstimadaHr}/hr yield. High margin corridor with verified on-time SLA.`;
 
-      estadoConexion = plan.hasPickupTransition ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY';
+        if (crossesBlocked && !plan.estaDesviado) {
+          recomendacionIA = 'RECHAZAR';
+          motivoIA = `High SLA delay risk crossing blocked ${avenidaCerrada}. Recommendation: Reject or request alternate detour.`;
+        }
+
+        ofertaPendiente = {
+          tipo: plan.tipo,
+          origen: plan.origen,
+          destino: plan.destino,
+          paradasSecuencia: plan.paradasSecuencia,
+          duracionViaje: plan.duracionViaje,
+          tarifaTotal,
+          propinaTotal: plan.propina,
+          distanciaKmTotal: plan.distanciaKmTotal,
+          kmVacioViaje: plan.kmVacioViaje,
+          hasPickupTransition: plan.hasPickupTransition,
+          transicionDesde: plan.transicionDesde,
+          logExplicativo: plan.logExplicativo,
+          recomendacionIA,
+          motivoIA,
+          rentabilidadEstimadaHr,
+        };
+        estadoConexion = 'OFERTA_ENTRANTE';
+      } else {
+        // Full Auto-Pilot Mode
+        ordenActiva = {
+          tipo: plan.tipo,
+          pedidos: [],
+          origen: plan.origen,
+          destino: plan.destino,
+          paradasSecuencia: plan.paradasSecuencia,
+          minutoInicioViaje: nuevoMinuto,
+          minutoFinViaje: nuevoMinuto + plan.duracionViaje,
+          tarifaTotal,
+          propinaTotal: plan.propina,
+          distanciaKmTotal: plan.distanciaKmTotal,
+          kmVacioViaje: plan.kmVacioViaje,
+          logExplicativo: plan.logExplicativo,
+          hasPickupTransition: plan.hasPickupTransition,
+          transicionDesde: plan.transicionDesde,
+          faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
+          streetPath,
+          estaDesviado: plan.estaDesviado,
+          desvioExplicacion: plan.desvioExplicacion,
+          indiceTramoActual: 0,
+          tramoActualOrigen,
+          tramoActualDestino,
+        };
+        estadoConexion = plan.hasPickupTransition ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY';
+      }
     } else {
       estadoConexion = 'DISPONIBLE';
     }
@@ -425,6 +482,7 @@ function advanceSimulation(
     ubicacionActual,
     coordenadasActuales,
     ordenActiva,
+    ofertaPendiente,
     gananciaNeta: Number(gananciaNeta.toFixed(2)),
     ingresosBrutos: Number(ingresosBrutos.toFixed(2)),
     gastoGasolina: Number(gastoGasolina.toFixed(2)),
@@ -530,7 +588,7 @@ export default function DriverAppPage() {
       setShift((prev) => {
         if (prev.estadoTurno === 'FINALIZADO') return prev;
         const next = advanceSimulation(prev, scenarioRef.current, mins);
-        if (next.estadoTurno === 'FINALIZADO') {
+        if (next.estadoTurno === 'FINALIZADO' || (next.directives?.autonomyMode === 'COPILOT' && next.ofertaPendiente)) {
           setIsPlaying(false);
         }
         return next;
@@ -766,6 +824,71 @@ export default function DriverAppPage() {
     setActiveTab(tab);
   };
 
+  const handleAcceptOffer = () => {
+    const isOptigo = activeTab === 'OPTIGO_AI';
+    const setShift = isOptigo ? setOptigoState : setGreedyState;
+
+    setShift((prev) => {
+      const offer = prev.ofertaPendiente;
+      if (!offer) return prev;
+
+      const streetPath = buildFullStreetSequence(offer.paradasSecuencia);
+      const paradas = offer.paradasSecuencia;
+
+      const ordenActiva = {
+        tipo: offer.tipo,
+        pedidos: [],
+        origen: offer.origen,
+        destino: offer.destino,
+        paradasSecuencia: offer.paradasSecuencia,
+        minutoInicioViaje: prev.minuto,
+        minutoFinViaje: prev.minuto + offer.duracionViaje,
+        tarifaTotal: offer.tarifaTotal,
+        propinaTotal: offer.propinaTotal,
+        distanciaKmTotal: offer.distanciaKmTotal,
+        kmVacioViaje: offer.kmVacioViaje,
+        logExplicativo: `👤 [DRIVER APPROVED OFFER]: Courier accepted delivery towards ${offer.destino}. ` + offer.logExplicativo,
+        hasPickupTransition: offer.hasPickupTransition,
+        transicionDesde: offer.transicionDesde,
+        faseActual: offer.hasPickupTransition ? ('TRANSICION_PICKUP' as const) : ('ENTREGA' as const),
+        streetPath,
+        estaDesviado: false,
+        indiceTramoActual: 0,
+        tramoActualOrigen: paradas[0],
+        tramoActualDestino: paradas[1],
+      };
+
+      return {
+        ...prev,
+        ordenActiva,
+        ofertaPendiente: null,
+        estadoConexion: offer.hasPickupTransition ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY',
+      };
+    });
+  };
+
+  const handleRejectOffer = () => {
+    const isOptigo = activeTab === 'OPTIGO_AI';
+    const setShift = isOptigo ? setOptigoState : setGreedyState;
+
+    setShift((prev) => ({
+      ...prev,
+      ofertaPendiente: null,
+      estadoConexion: 'DISPONIBLE',
+      disponibleEnMinuto: prev.minuto + 1,
+    }));
+  };
+
+  const handleUpdateDirectives = (newDirectives: DriverDirectives) => {
+    const isOptigo = activeTab === 'OPTIGO_AI';
+    const setShift = isOptigo ? setOptigoState : setGreedyState;
+
+    setShift((prev) => ({
+      ...prev,
+      directives: newDirectives,
+    }));
+  };
+
   if (authChecking) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 gap-4">
@@ -819,7 +942,12 @@ export default function DriverAppPage() {
         {/* Real-Time Earnings & Active Order Card (5 Columns) */}
         <div className="lg:col-span-5 flex flex-col gap-5 justify-between">
           <DriverEarningsCard shiftState={currentShiftState} />
-          <ActiveOrderCard shiftState={currentShiftState} />
+          <ActiveOrderCard 
+            shiftState={currentShiftState}
+            onAcceptOffer={handleAcceptOffer}
+            onRejectOffer={handleRejectOffer}
+            onUpdateDirectives={handleUpdateDirectives}
+          />
         </div>
       </div>
 

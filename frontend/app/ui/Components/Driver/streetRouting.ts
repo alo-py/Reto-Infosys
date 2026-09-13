@@ -1,5 +1,5 @@
 import rawStreetRoutes from './monterrey_street_routes.json';
-import { MONTERREY_NODES, ZoneName } from './types';
+import { MONTERREY_NODES, ZoneName, DriverDirectives } from './types';
 
 const streetRoutes: Record<string, [number, number][]> = rawStreetRoutes as unknown as Record<string, [number, number][]>;
 
@@ -338,18 +338,29 @@ export function getNextOrderPlan(
   isOptiGo: boolean,
   surge: number = 1.0,
   avenidaCerrada: string | null = null,
-  trafico: number = 1.0
+  trafico: number = 1.0,
+  directives?: DriverDirectives
 ): OrderPlanResult {
   const corridor = MONTERREY_CORRIDORS[currentLocation] || MONTERREY_CORRIDORS["Centro MTY (Barrio Antiguo)"];
 
   // 35% chance of pickup transition to a nearby hub, 65% immediate pickup at current hub
-  const needTransition = Math.random() < 0.35 && corridor.adjacentHubs.length > 0;
-  const pickupHub = needTransition 
+  let needTransition = Math.random() < 0.35 && corridor.adjacentHubs.length > 0;
+  let pickupHub = needTransition 
     ? corridor.adjacentHubs[Math.floor(Math.random() * corridor.adjacentHubs.length)]
     : currentLocation;
 
+  // Apply Driver Directive: Max deadhead km filter
+  if (needTransition && directives) {
+    const deadheadDist = getZoneDistanceKm(currentLocation, pickupHub);
+    if (deadheadDist > directives.maxDeadheadKm) {
+      needTransition = false;
+      pickupHub = currentLocation;
+    }
+  }
+
   const pickupCorridor = MONTERREY_CORRIDORS[pickupHub] || corridor;
-  const isBatch = isOptiGo && Math.random() > 0.45 && pickupCorridor.batches.length > 0;
+  const batchesAllowed = directives ? directives.allowBatches : true;
+  const isBatch = isOptiGo && batchesAllowed && Math.random() > 0.40 && pickupCorridor.batches.length > 0;
 
   let destino: ZoneName;
   let paradasSecuencia: ZoneName[];
