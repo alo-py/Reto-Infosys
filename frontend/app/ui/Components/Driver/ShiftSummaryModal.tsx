@@ -39,7 +39,7 @@ export default function ShiftSummaryModal({
     : 100;
 
   return (
-    <div className="fixed inset-0 z-500 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+    <div className="fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-slate-900/95 border border-white/20 rounded-4xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
         {/* Brillo ambiental de celebración */}
         <div className="absolute -top-24 -left-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />

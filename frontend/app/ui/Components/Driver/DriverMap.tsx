@@ -174,19 +174,19 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   }, [shiftState.avenidaCerrada]);
 
   return (
-    <div className="relative w-full h-full min-h-[480px] lg:min-h-[580px] rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-slate-950">
+    <div className="isolate relative z-0 w-full h-full min-h-[480px] lg:min-h-[580px] rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-slate-950">
       {/* Contenedor del mapa de Leaflet */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
       {/* Marca de agua / Brújula de Monterrey */}
-      <div className="absolute top-4 left-4 z-400 bg-slate-950/80 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-1.5 text-xs text-slate-200 flex items-center gap-2 shadow-lg">
+      <div className="absolute top-4 left-4 z-10 bg-slate-950/80 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-1.5 text-xs text-slate-200 flex items-center gap-2 shadow-lg">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         <span className="font-semibold text-white">Área Metropolitana de Monterrey</span>
         <span className="text-[10px] text-slate-400 font-mono">GPS Live</span>
       </div>
 
       {/* Leyenda de ruta en la esquina inferior izquierda */}
-      <div className="absolute bottom-4 left-4 z-400 bg-slate-950/85 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-[11px] text-slate-300 space-y-1.5 shadow-lg hidden sm:block">
+      <div className="absolute bottom-4 left-4 z-10 bg-slate-950/85 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-[11px] text-slate-300 space-y-1.5 shadow-lg hidden sm:block">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>
           <span>Repartidor / Conductor</span>
