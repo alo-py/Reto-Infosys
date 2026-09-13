@@ -9,7 +9,7 @@ import {
   LocationCoord, 
   ZoneName 
 } from './types';
-import { buildFullStreetSequence } from './streetRouting';
+import { buildFullStreetSequence, getStreetPath } from './streetRouting';
 
 interface DriverMapProps {
   shiftState: ActiveShiftState;
@@ -41,6 +41,7 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
+  const pickupPolylineRef = useRef<L.Polyline | null>(null);
   const incidentPolylinesRef = useRef<L.Polyline[]>([]);
 
   // Referencias para la animación continua de movimiento fluido (60 FPS)
@@ -189,11 +190,17 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
         currentCoordsRef.current = targetCoords;
         animationFrameRef.current = null;
 
-        // Centrar mapa suavemente
-        mapInstanceRef.current?.panTo([targetCoords.lat, targetCoords.lng], {
-          animate: true,
-          duration: 0.5,
-        });
+        // Centrar mapa suavemente solo si el vehículo se aproxima al borde de la vista
+        if (mapInstanceRef.current) {
+          const map = mapInstanceRef.current;
+          const bounds = map.getBounds();
+          if (!bounds.pad(-0.2).contains([targetCoords.lat, targetCoords.lng])) {
+            map.panTo([targetCoords.lat, targetCoords.lng], {
+              animate: true,
+              duration: 0.6,
+            });
+          }
+        }
       }
     };
 
@@ -210,26 +217,58 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
-    // Eliminar ruta anterior
+    // Eliminar rutas anteriores
     if (routePolylineRef.current) {
       mapInstanceRef.current.removeLayer(routePolylineRef.current);
       routePolylineRef.current = null;
     }
+    if (pickupPolylineRef.current) {
+      mapInstanceRef.current.removeLayer(pickupPolylineRef.current);
+      pickupPolylineRef.current = null;
+    }
 
     if (shiftState.ordenActiva && shiftState.ordenActiva.paradasSecuencia.length >= 2) {
-      const fullStreetPath = buildFullStreetSequence(shiftState.ordenActiva.paradasSecuencia);
+      const paradas = shiftState.ordenActiva.paradasSecuencia;
 
-      if (fullStreetPath.length >= 2) {
-        // Trazado de ruta estilo neón Uber/DiDi siguiendo la red vial real de Monterrey
-        const polyline = L.polyline(fullStreetPath, {
-          color: '#10b981',
-          weight: 5,
-          opacity: 0.95,
-          dashArray: '8, 8',
-          lineJoin: 'round',
-        }).addTo(mapInstanceRef.current);
+      if (shiftState.ordenActiva.hasPickupTransition && paradas.length >= 3) {
+        // Tramo 1: Transición hacia el restaurante de recolección (Sky Blue)
+        const transitionPath = getStreetPath(paradas[0], paradas[1]);
+        if (transitionPath.length >= 2) {
+          const pickupLine = L.polyline(transitionPath, {
+            color: '#38bdf8',
+            weight: 5,
+            opacity: 0.95,
+            dashArray: '6, 6',
+            lineJoin: 'round',
+          }).addTo(mapInstanceRef.current);
+          pickupPolylineRef.current = pickupLine;
+        }
 
-        routePolylineRef.current = polyline;
+        // Tramo 2: Entrega al cliente final (Neon Emerald)
+        const deliveryPath = buildFullStreetSequence(paradas.slice(1));
+        if (deliveryPath.length >= 2) {
+          const deliveryLine = L.polyline(deliveryPath, {
+            color: '#10b981',
+            weight: 5,
+            opacity: 0.95,
+            dashArray: '8, 8',
+            lineJoin: 'round',
+          }).addTo(mapInstanceRef.current);
+          routePolylineRef.current = deliveryLine;
+        }
+      } else {
+        // Ruta directa de entrega (Neon Emerald)
+        const fullStreetPath = shiftState.ordenActiva.streetPath || buildFullStreetSequence(paradas);
+        if (fullStreetPath.length >= 2) {
+          const polyline = L.polyline(fullStreetPath, {
+            color: '#10b981',
+            weight: 5,
+            opacity: 0.95,
+            dashArray: '8, 8',
+            lineJoin: 'round',
+          }).addTo(mapInstanceRef.current);
+          routePolylineRef.current = polyline;
+        }
       }
     }
   }, [shiftState.ordenActiva]);
@@ -275,9 +314,15 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>
           <span>Driver in Transit</span>
         </div>
-        <div className="flex items-center gap-2">
+        {shiftState.ordenActiva?.hasPickupTransition && (
+          <div className="flex items-center gap-2 text-sky-300 font-medium">
+            <span className="w-4 h-1 border-t-2 border-sky-400 border-dashed"></span>
+            <span>Pickup Transition (To Restaurant)</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 text-emerald-300 font-medium">
           <span className="w-4 h-1 border-t-2 border-emerald-400 border-dashed"></span>
-          <span>Optimized Route (OR-Tools)</span>
+          <span>Delivery Route (To Customer)</span>
         </div>
         {shiftState.avenidaCerrada && (
           <div className="flex items-center gap-2 text-rose-300 font-medium">

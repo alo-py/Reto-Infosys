@@ -14,7 +14,7 @@ import {
   MONTERREY_NODES, 
   ZoneName 
 } from '@/app/ui/Components/Driver/types';
-import { buildFullStreetSequence } from '@/app/ui/Components/Driver/streetRouting';
+import { buildFullStreetSequence, getNextOrderPlan } from '@/app/ui/Components/Driver/streetRouting';
 
 // Carga dinámica de Leaflet con SSR desactivado para evitar errores de window
 const DriverMap = dynamic(
@@ -172,8 +172,22 @@ export default function DriverAppPage() {
         const transcurrido = Math.max(0, nuevoMinuto - ordenActiva.minutoInicioViaje);
         const ratio = Math.min(1.0, transcurrido / duracion);
 
-        const paradas = ordenActiva.paradasSecuencia;
-        const streetPath = buildFullStreetSequence(paradas);
+        // Actualizar fase de conexión (Pickup Transition vs Customer Delivery)
+        if (ordenActiva.hasPickupTransition && ordenActiva.paradasSecuencia.length >= 3) {
+          const pickupRatioThreshold = 1 / (ordenActiva.paradasSecuencia.length - 1);
+          if (ratio < pickupRatioThreshold) {
+            estadoConexion = 'EN_CAMINO_PICKUP';
+            ordenActiva.faseActual = 'TRANSICION_PICKUP';
+          } else {
+            estadoConexion = 'EN_CAMINO_DELIVERY';
+            ordenActiva.faseActual = 'ENTREGA';
+          }
+        } else {
+          estadoConexion = 'EN_CAMINO_DELIVERY';
+          ordenActiva.faseActual = 'ENTREGA';
+        }
+
+        const streetPath = ordenActiva.streetPath || buildFullStreetSequence(ordenActiva.paradasSecuencia);
 
         if (streetPath.length >= 2) {
           const numSegmentos = streetPath.length - 1;
@@ -194,47 +208,35 @@ export default function DriverAppPage() {
 
       // Si el conductor está libre y no ha terminado el turno, asignar nueva orden
       if (!ordenActiva && !isFinished) {
-        const origenIdx = Math.floor(Math.random() * ZONAS_MONTERREY.length);
-        const destIdx = (origenIdx + 2) % ZONAS_MONTERREY.length;
-        const origen = ZONAS_MONTERREY[origenIdx];
-        const destino = ZONAS_MONTERREY[destIdx];
-
-        const isBatch = prev.tipoAgente === 'OPTIGO_AI' && Math.random() > 0.45;
-        const duracionViaje = isBatch ? 26 : 18;
-        const tarifaBase = isBatch ? 74.0 : 42.0;
-        const propina = isBatch ? 25.0 : 15.0;
-        const tarifaTotal = Number(((tarifaBase * surge) + propina).toFixed(2));
-
-        let log = "";
-        if (prev.tipoAgente === 'OPTIGO_AI') {
-          if (avenidaCerrada) {
-            log = `🛡️ [SUPERVISOR VETO]: Direct route crosses blocked ${avenidaCerrada}. Safe rerouting towards ${destino} approved (+61% profitability).`;
-          } else if (isBatch) {
-            log = `🤖 [STRATEGIST]: Dual batch of 2 orders solved with Google OR-Tools (${tarifaTotal} MXN).`;
-          } else {
-            log = `🤖 [STRATEGIST]: High $/hr single delivery (${origen} -> ${destino}) verified with on-time SLA.`;
-          }
-        } else {
-          log = `Greedy baseline automatically took first available order towards ${destino} without detour optimization.`;
-        }
+        const plan = getNextOrderPlan(
+          ubicacionActual,
+          prev.tipoAgente === 'OPTIGO_AI',
+          surge,
+          avenidaCerrada
+        );
+        const streetPath = buildFullStreetSequence(plan.paradasSecuencia);
+        const tarifaTotal = Number(((plan.tarifaBase * surge) + plan.propina).toFixed(2));
 
         ordenActiva = {
-          tipo: isBatch ? 'BATCH' : 'INDIVIDUAL',
+          tipo: plan.tipo,
           pedidos: [],
-          origen,
-          destino,
-          paradasSecuencia: isBatch ? [origen, "Centro MTY (Barrio Antiguo)", destino] : [origen, destino],
+          origen: plan.origen,
+          destino: plan.destino,
+          paradasSecuencia: plan.paradasSecuencia,
           minutoInicioViaje: nuevoMinuto,
-          minutoFinViaje: nuevoMinuto + duracionViaje,
+          minutoFinViaje: nuevoMinuto + plan.duracionViaje,
           tarifaTotal,
-          propinaTotal: propina,
-          logExplicativo: log,
+          propinaTotal: plan.propina,
+          logExplicativo: plan.logExplicativo,
+          hasPickupTransition: plan.hasPickupTransition,
+          transicionDesde: plan.transicionDesde,
+          faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
+          streetPath,
         };
 
-        // Mover posición hacia el restaurante de pickup
-        ubicacionActual = origen;
-        coordenadasActuales = MONTERREY_NODES[origen] || coordenadasActuales;
-        estadoConexion = 'EN_CAMINO_DELIVERY';
+        // ZERO TELEPORTATION: Driver starts exactly at ubicacionActual.
+        // Smooth continuous movement through Monterrey streets.
+        estadoConexion = plan.hasPickupTransition ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY';
       }
 
       return {

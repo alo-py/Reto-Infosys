@@ -7,6 +7,11 @@ const streetRoutes: Record<string, [number, number][]> = rawStreetRoutes as unkn
  * Returns the exact OpenStreetMap street coordinates between two Monterrey locations.
  */
 export function getStreetPath(origin: ZoneName | string, destination: ZoneName | string): [number, number][] {
+  if (origin === destination) {
+    const node = MONTERREY_NODES[origin as ZoneName];
+    return node ? [[node.lat, node.lng]] : [];
+  }
+
   const key = `${origin}->${destination}`;
   if (streetRoutes[key] && streetRoutes[key].length > 0) {
     return streetRoutes[key];
@@ -27,12 +32,15 @@ export function getStreetPath(origin: ZoneName | string, destination: ZoneName |
 
 /**
  * Builds the continuous street-by-street GPS path for a multi-stop sequence of deliveries.
+ * Eliminates duplicate consecutive stops to prevent zero-length or erratic movements.
  */
 export function buildFullStreetSequence(stops: (ZoneName | string)[]): [number, number][] {
   if (stops.length < 2) return [];
 
   const fullPath: [number, number][] = [];
   for (let i = 0; i < stops.length - 1; i++) {
+    if (stops[i] === stops[i + 1]) continue;
+
     const segment = getStreetPath(stops[i], stops[i + 1]);
     if (segment.length > 0) {
       if (fullPath.length > 0) {
@@ -43,4 +51,205 @@ export function buildFullStreetSequence(stops: (ZoneName | string)[]): [number, 
     }
   }
   return fullPath;
+}
+
+/**
+ * Logical traffic corridors across Monterrey metropolitan area.
+ * Each entry ensures orders follow direct arterial avenues (Garza Sada, Morones Prieto, Constitución, Gonzalitos, etc.)
+ * rather than wandering or taking random zig-zag loops.
+ */
+export const MONTERREY_CORRIDORS: Record<
+  ZoneName,
+  {
+    adjacentHubs: ZoneName[];
+    singles: ZoneName[];
+    batches: [ZoneName, ZoneName][];
+  }
+> = {
+  "Tec de Monterrey (Garza Sada)": {
+    adjacentHubs: ["Centro MTY (Barrio Antiguo)", "Valle Oriente (San Pedro)"],
+    singles: ["Centro MTY (Barrio Antiguo)", "Valle Oriente (San Pedro)", "San Jerónimo", "Centrito Valle (San Pedro)"],
+    batches: [
+      ["Centro MTY (Barrio Antiguo)", "San Jerónimo"],
+      ["Centro MTY (Barrio Antiguo)", "San Nicolás"],
+      ["Valle Oriente (San Pedro)", "Centrito Valle (San Pedro)"],
+    ],
+  },
+  "Centro MTY (Barrio Antiguo)": {
+    adjacentHubs: ["Tec de Monterrey (Garza Sada)", "San Jerónimo", "San Nicolás", "Valle Oriente (San Pedro)"],
+    singles: ["Tec de Monterrey (Garza Sada)", "San Jerónimo", "San Nicolás", "Valle Oriente (San Pedro)", "Centrito Valle (San Pedro)"],
+    batches: [
+      ["San Jerónimo", "Cumbres"],
+      ["San Jerónimo", "Santa Catarina"],
+      ["Valle Oriente (San Pedro)", "Centrito Valle (San Pedro)"],
+      ["San Nicolás", "Apodaca (Industrial)"],
+      ["Tec de Monterrey (Garza Sada)", "Valle Oriente (San Pedro)"],
+    ],
+  },
+  "Centrito Valle (San Pedro)": {
+    adjacentHubs: ["Valle Oriente (San Pedro)", "San Jerónimo", "Santa Catarina"],
+    singles: ["Valle Oriente (San Pedro)", "San Jerónimo", "Santa Catarina", "Centro MTY (Barrio Antiguo)"],
+    batches: [
+      ["Valle Oriente (San Pedro)", "Tec de Monterrey (Garza Sada)"],
+      ["San Jerónimo", "Cumbres"],
+      ["San Jerónimo", "Centro MTY (Barrio Antiguo)"],
+      ["Santa Catarina", "San Jerónimo"],
+    ],
+  },
+  "Valle Oriente (San Pedro)": {
+    adjacentHubs: ["Centrito Valle (San Pedro)", "Tec de Monterrey (Garza Sada)", "Centro MTY (Barrio Antiguo)"],
+    singles: ["Centrito Valle (San Pedro)", "Tec de Monterrey (Garza Sada)", "Centro MTY (Barrio Antiguo)", "San Jerónimo"],
+    batches: [
+      ["Centrito Valle (San Pedro)", "San Jerónimo"],
+      ["Tec de Monterrey (Garza Sada)", "Centro MTY (Barrio Antiguo)"],
+      ["Centrito Valle (San Pedro)", "Santa Catarina"],
+    ],
+  },
+  "San Jerónimo": {
+    adjacentHubs: ["Centrito Valle (San Pedro)", "Centro MTY (Barrio Antiguo)", "Cumbres", "Santa Catarina"],
+    singles: ["Centrito Valle (San Pedro)", "Centro MTY (Barrio Antiguo)", "Cumbres", "Santa Catarina"],
+    batches: [
+      ["Centrito Valle (San Pedro)", "Valle Oriente (San Pedro)"],
+      ["Centro MTY (Barrio Antiguo)", "Tec de Monterrey (Garza Sada)"],
+      ["Centro MTY (Barrio Antiguo)", "San Nicolás"],
+      ["Santa Catarina", "Centrito Valle (San Pedro)"],
+    ],
+  },
+  "Cumbres": {
+    adjacentHubs: ["San Jerónimo", "San Nicolás"],
+    singles: ["San Jerónimo", "Centro MTY (Barrio Antiguo)", "Centrito Valle (San Pedro)"],
+    batches: [
+      ["San Jerónimo", "Centrito Valle (San Pedro)"],
+      ["San Jerónimo", "Centro MTY (Barrio Antiguo)"],
+      ["San Nicolás", "Centro MTY (Barrio Antiguo)"],
+    ],
+  },
+  "San Nicolás": {
+    adjacentHubs: ["Centro MTY (Barrio Antiguo)", "Apodaca (Industrial)", "Cumbres"],
+    singles: ["Centro MTY (Barrio Antiguo)", "Apodaca (Industrial)", "Cumbres", "Tec de Monterrey (Garza Sada)"],
+    batches: [
+      ["Centro MTY (Barrio Antiguo)", "Tec de Monterrey (Garza Sada)"],
+      ["Centro MTY (Barrio Antiguo)", "Valle Oriente (San Pedro)"],
+      ["Apodaca (Industrial)", "Centro MTY (Barrio Antiguo)"],
+      ["Cumbres", "San Jerónimo"],
+    ],
+  },
+  "Apodaca (Industrial)": {
+    adjacentHubs: ["San Nicolás", "Centro MTY (Barrio Antiguo)"],
+    singles: ["San Nicolás", "Centro MTY (Barrio Antiguo)"],
+    batches: [
+      ["San Nicolás", "Centro MTY (Barrio Antiguo)"],
+      ["San Nicolás", "Cumbres"],
+      ["Centro MTY (Barrio Antiguo)", "Tec de Monterrey (Garza Sada)"],
+    ],
+  },
+  "Santa Catarina": {
+    adjacentHubs: ["San Jerónimo", "Centrito Valle (San Pedro)"],
+    singles: ["San Jerónimo", "Centrito Valle (San Pedro)", "Centro MTY (Barrio Antiguo)"],
+    batches: [
+      ["San Jerónimo", "Centro MTY (Barrio Antiguo)"],
+      ["San Jerónimo", "Cumbres"],
+      ["Centrito Valle (San Pedro)", "Valle Oriente (San Pedro)"],
+    ],
+  },
+};
+
+export interface OrderPlanResult {
+  tipo: 'INDIVIDUAL' | 'BATCH';
+  origen: ZoneName;
+  destino: ZoneName;
+  paradasSecuencia: ZoneName[];
+  duracionViaje: number;
+  tarifaBase: number;
+  propina: number;
+  hasPickupTransition: boolean;
+  transicionDesde?: ZoneName;
+  logExplicativo: string;
+}
+
+/**
+ * Computes the next realistic order or batch for the driver from their current location.
+ * ZERO TELEPORTATION: paradasSecuencia always starts at currentLocation.
+ * If pickup is at another hub, it shows a smooth pickup transition route.
+ */
+export function getNextOrderPlan(
+  currentLocation: ZoneName,
+  isOptiGo: boolean,
+  surge: number = 1.0,
+  avenidaCerrada: string | null = null
+): OrderPlanResult {
+  const corridor = MONTERREY_CORRIDORS[currentLocation] || MONTERREY_CORRIDORS["Centro MTY (Barrio Antiguo)"];
+
+  // 35% chance of pickup transition to a nearby hub, 65% immediate pickup at current hub
+  const needTransition = Math.random() < 0.35 && corridor.adjacentHubs.length > 0;
+  const pickupHub = needTransition 
+    ? corridor.adjacentHubs[Math.floor(Math.random() * corridor.adjacentHubs.length)]
+    : currentLocation;
+
+  const pickupCorridor = MONTERREY_CORRIDORS[pickupHub] || corridor;
+  const isBatch = isOptiGo && Math.random() > 0.45 && pickupCorridor.batches.length > 0;
+
+  let destino: ZoneName;
+  let paradasSecuencia: ZoneName[];
+  let duracionViaje: number;
+  let tarifaBase: number;
+  let propina: number;
+  let log = "";
+
+  if (isBatch) {
+    const batchPair = pickupCorridor.batches[Math.floor(Math.random() * pickupCorridor.batches.length)];
+    destino = batchPair[1];
+    
+    if (needTransition) {
+      paradasSecuencia = [currentLocation, pickupHub, batchPair[0], batchPair[1]];
+      duracionViaje = 28;
+      tarifaBase = 88.0;
+      propina = 28.0;
+      log = `🤖 [STRATEGIST]: Relocation from ${currentLocation} to ${pickupHub}. Dual batch solved with Google OR-Tools towards ${batchPair[0]} & ${batchPair[1]}.`;
+    } else {
+      paradasSecuencia = [currentLocation, batchPair[0], batchPair[1]];
+      duracionViaje = 24;
+      tarifaBase = 76.0;
+      propina = 25.0;
+      log = `🤖 [STRATEGIST]: Dual batch departing from ${currentLocation} solved with Google OR-Tools. High $/hr density corridor towards ${batchPair[0]} and ${batchPair[1]}.`;
+    }
+  } else {
+    const singles = pickupCorridor.singles.filter((s) => s !== currentLocation && s !== pickupHub);
+    destino = singles.length > 0 ? singles[Math.floor(Math.random() * singles.length)] : "Centro MTY (Barrio Antiguo)";
+
+    if (needTransition) {
+      paradasSecuencia = [currentLocation, pickupHub, destino];
+      duracionViaje = 20;
+      tarifaBase = 52.0;
+      propina = 16.0;
+      log = isOptiGo
+        ? `🤖 [STRATEGIST]: Short pickup relocation (${currentLocation} -> ${pickupHub}) for high-yield delivery to ${destino}. Verified on-time SLA.`
+        : `Greedy dispatch relocated driver to ${pickupHub} to accept delivery towards ${destino}.`;
+    } else {
+      paradasSecuencia = [currentLocation, destino];
+      duracionViaje = 16;
+      tarifaBase = 42.0;
+      propina = 14.0;
+      log = isOptiGo
+        ? `🤖 [STRATEGIST]: Direct single delivery from ${currentLocation} to ${destino} along Monterrey primary arterial network.`
+        : `Greedy baseline automatically took first available order towards ${destino}.`;
+    }
+  }
+
+  if (isOptiGo && avenidaCerrada) {
+    log = `🛡️ [SUPERVISOR VETO]: Direct route avoids blocked ${avenidaCerrada}. Safe alternative corridor towards ${destino} approved (+61% profitability).`;
+  }
+
+  return {
+    tipo: isBatch ? 'BATCH' : 'INDIVIDUAL',
+    origen: pickupHub,
+    destino,
+    paradasSecuencia,
+    duracionViaje,
+    tarifaBase,
+    propina,
+    hasPickupTransition: needTransition,
+    transicionDesde: needTransition ? currentLocation : undefined,
+    logExplicativo: log,
+  };
 }

@@ -44,7 +44,7 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
     <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-5 shadow-xl space-y-4">
       {/* 1. Order Header */}
       <div className="flex justify-between items-center border-b border-white/15 pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isBatch ? (
             <div className="px-2.5 py-1 rounded-xl bg-purple-500/30 text-purple-200 text-xs font-bold border border-purple-400/40 flex items-center gap-1.5 shadow-sm">
               <Layers className="w-3.5 h-3.5" />
@@ -56,9 +56,19 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
               <span>Single Order</span>
             </div>
           )}
-          <span className="text-xs font-medium text-slate-300">
-            {isBatch ? 'Google OR-Tools VRPTW' : 'Direct Route'}
-          </span>
+
+          {/* Real-time Navigation Phase Badge */}
+          {orden.faseActual === 'TRANSICION_PICKUP' ? (
+            <div className="px-2 py-0.5 rounded-full bg-sky-500/25 border border-sky-400/40 text-sky-200 text-[10px] font-semibold flex items-center gap-1 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+              <span>Heading to Restaurant</span>
+            </div>
+          ) : (
+            <div className="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-emerald-200 text-[10px] font-semibold flex items-center gap-1 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>Delivering to Customer</span>
+            </div>
+          )}
         </div>
 
         {/* Fare & Tips */}
@@ -76,22 +86,37 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
         </div>
       </div>
 
-      {/* 2. Route Waypoints (Pickups and Drop-offs) */}
+      {/* 2. Route Waypoints (Transition -> Pickups -> Drop-offs) */}
       <div className="space-y-2">
+        {orden.hasPickupTransition && orden.transicionDesde && (
+          <>
+            <div className="flex items-start gap-2.5">
+              <div className="mt-1 w-3 h-3 rounded-full bg-sky-400 border-2 border-slate-900 shrink-0 shadow-[0_0_6px_#38bdf8]" />
+              <div className="text-xs">
+                <span className="text-[10px] text-sky-300 uppercase font-mono">Transition Start:</span>
+                <div className="font-semibold text-white">{orden.transicionDesde}</div>
+              </div>
+            </div>
+            <div className="ml-1.5 w-0.5 h-3.5 bg-sky-400/40 border-l border-dashed border-sky-400/60 my-0.5" />
+          </>
+        )}
+
         <div className="flex items-start gap-2.5">
-          <div className="mt-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-slate-900 shrink-0" />
+          <div className="mt-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-slate-900 shrink-0 shadow-[0_0_6px_#f59e0b]" />
           <div className="text-xs">
-            <span className="text-[10px] text-slate-400 uppercase font-mono">Restaurant (Pickup):</span>
+            <span className="text-[10px] text-amber-300 uppercase font-mono">Restaurant (Pickup):</span>
             <div className="font-semibold text-white">{orden.origen}</div>
           </div>
         </div>
 
-        <div className="ml-1.5 w-0.5 h-4 bg-white/20 border-l border-dashed border-white/40 my-0.5" />
+        <div className="ml-1.5 w-0.5 h-3.5 bg-emerald-400/40 border-l border-dashed border-emerald-400/60 my-0.5" />
 
         <div className="flex items-start gap-2.5">
-          <div className="mt-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900 shrink-0" />
+          <div className="mt-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900 shrink-0 shadow-[0_0_6px_#10b981]" />
           <div className="text-xs">
-            <span className="text-[10px] text-slate-400 uppercase font-mono">Destination (Drop-off):</span>
+            <span className="text-[10px] text-emerald-300 uppercase font-mono">
+              {isBatch ? 'Final Drop-off (OR-Tools):' : 'Destination (Drop-off):'}
+            </span>
             <div className="font-semibold text-white">{orden.destino}</div>
           </div>
         </div>

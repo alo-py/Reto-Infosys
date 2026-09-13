@@ -76,6 +76,10 @@ export interface ActiveShiftState {
     propinaTotal: number;
     logExplicativo: string;
     agenteRazonamiento?: string;
+    hasPickupTransition?: boolean;
+    transicionDesde?: ZoneName;
+    faseActual?: 'TRANSICION_PICKUP' | 'ENTREGA';
+    streetPath?: [number, number][];
   } | null;
 }
 
