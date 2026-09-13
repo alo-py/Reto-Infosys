@@ -82,6 +82,9 @@ export interface ActiveShiftState {
     streetPath?: [number, number][];
     estaDesviado?: boolean;
     desvioExplicacion?: string;
+    indiceTramoActual: number;
+    tramoActualOrigen: ZoneName;
+    tramoActualDestino: ZoneName;
   } | null;
 }
 

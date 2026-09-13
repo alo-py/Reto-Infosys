@@ -191,6 +191,9 @@ export default function DriverAppPage() {
                   desvioExplicacion: detour.bypassDescription,
                   hasPickupTransition: false,
                   faseActual: 'ENTREGA',
+                  indiceTramoActual: 0,
+                  tramoActualOrigen: detour.detourStops[0],
+                  tramoActualDestino: detour.detourStops[1],
                   logExplicativo: `🛡️ [SUPERVISOR DYNAMIC REROUTE]: Road closure detected on ${avenidaCerrada}! Real-time detour activated: ${detour.bypassDescription}. Avoiding +25 min delay!`,
                 };
               }
@@ -209,20 +212,25 @@ export default function DriverAppPage() {
         const transcurrido = Math.max(0, nuevoMinuto - ordenActiva.minutoInicioViaje);
         const ratio = Math.min(1.0, transcurrido / duracion);
 
+        // Calcular tramo actual (leg) activo en la secuencia de paradas
+        const paradas = ordenActiva.paradasSecuencia;
+        const totalTramos = Math.max(1, paradas.length - 1);
+        const indiceTramoActual = Math.min(Math.floor(ratio * totalTramos), totalTramos - 1);
+        const tramoActualOrigen = paradas[indiceTramoActual];
+        const tramoActualDestino = paradas[indiceTramoActual + 1];
+
         // Actualizar fase de conexión (Pickup Transition vs Customer Delivery)
-        if (ordenActiva.hasPickupTransition && ordenActiva.paradasSecuencia.length >= 3) {
-          const pickupRatioThreshold = 1 / (ordenActiva.paradasSecuencia.length - 1);
-          if (ratio < pickupRatioThreshold) {
-            estadoConexion = 'EN_CAMINO_PICKUP';
-            ordenActiva.faseActual = 'TRANSICION_PICKUP';
-          } else {
-            estadoConexion = 'EN_CAMINO_DELIVERY';
-            ordenActiva.faseActual = 'ENTREGA';
-          }
-        } else {
-          estadoConexion = 'EN_CAMINO_DELIVERY';
-          ordenActiva.faseActual = 'ENTREGA';
-        }
+        const isTransition = ordenActiva.hasPickupTransition && indiceTramoActual === 0;
+        const faseActual = isTransition ? 'TRANSICION_PICKUP' : 'ENTREGA';
+        estadoConexion = isTransition ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY';
+
+        ordenActiva = {
+          ...ordenActiva,
+          indiceTramoActual,
+          tramoActualOrigen,
+          tramoActualDestino,
+          faseActual,
+        };
 
         const streetPath = ordenActiva.streetPath || buildFullStreetSequence(ordenActiva.paradasSecuencia);
 
@@ -253,6 +261,9 @@ export default function DriverAppPage() {
         );
         const streetPath = buildFullStreetSequence(plan.paradasSecuencia);
         const tarifaTotal = Number(((plan.tarifaBase * surge) + plan.propina).toFixed(2));
+        const paradas = plan.paradasSecuencia;
+        const tramoActualOrigen = paradas[0];
+        const tramoActualDestino = paradas[1];
 
         ordenActiva = {
           tipo: plan.tipo,
@@ -271,6 +282,9 @@ export default function DriverAppPage() {
           streetPath,
           estaDesviado: plan.estaDesviado,
           desvioExplicacion: plan.desvioExplicacion,
+          indiceTramoActual: 0,
+          tramoActualOrigen,
+          tramoActualDestino,
         };
 
         // ZERO TELEPORTATION: Driver starts exactly at ubicacionActual.

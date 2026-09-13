@@ -213,11 +213,11 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
     };
   }, [shiftState.coordenadasActuales]);
 
-  // 3. Dibujar la ruta optimizada activa en calles reales de Monterrey (OR-Tools / OSM)
+  // 3. Dibujar ÚNICAMENTE el camino del tramo activo actual (una sola línea visible en el mapa)
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
-    // Eliminar rutas anteriores
+    // Eliminar polilínea anterior si existe
     if (routePolylineRef.current) {
       mapInstanceRef.current.removeLayer(routePolylineRef.current);
       routePolylineRef.current = null;
@@ -227,64 +227,32 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
       pickupPolylineRef.current = null;
     }
 
-    if (shiftState.ordenActiva && shiftState.ordenActiva.paradasSecuencia.length >= 2) {
-      const orden = shiftState.ordenActiva;
-      const paradas = orden.paradasSecuencia;
+    const orden = shiftState.ordenActiva;
+    // Si no hay orden o el viaje concluyó, cero líneas en el mapa
+    if (!orden || !orden.tramoActualOrigen || !orden.tramoActualDestino) return;
 
-      // Desaparecer inmediatamente la línea de transición si llegamos al punto A (faseActual === 'ENTREGA')
-      const isStillInTransition = orden.hasPickupTransition && orden.faseActual === 'TRANSICION_PICKUP' && paradas.length >= 3;
+    const isTransition = orden.hasPickupTransition && orden.indiceTramoActual === 0;
 
-      if (isStillInTransition) {
-        // Tramo 1: Transición hacia el restaurante de recolección (Sky Blue)
-        const transitionPath = getStreetPath(paradas[0], paradas[1]);
-        if (transitionPath.length >= 2) {
-          const pickupLine = L.polyline(transitionPath, {
-            color: '#38bdf8',
-            weight: 5,
-            opacity: 0.95,
-            dashArray: '6, 6',
-            lineJoin: 'round',
-          }).addTo(mapInstanceRef.current);
-          pickupPolylineRef.current = pickupLine;
-        }
+    // Obtener las coordenadas reales del único tramo activo (de Punto X a Punto Y)
+    const activeLegPath = getStreetPath(orden.tramoActualOrigen, orden.tramoActualDestino);
 
-        // Tramo 2: Entrega al cliente final (Neon Emerald)
-        const deliveryPath = buildFullStreetSequence(paradas.slice(1));
-        if (deliveryPath.length >= 2) {
-          const deliveryLine = L.polyline(deliveryPath, {
-            color: '#10b981',
-            weight: 5,
-            opacity: 0.95,
-            dashArray: '8, 8',
-            lineJoin: 'round',
-          }).addTo(mapInstanceRef.current);
-          routePolylineRef.current = deliveryLine;
-        }
-      } else {
-        // Fase de ENTREGA o ruta directa: LA LÍNEA DE TRANSICIÓN DESAPARECE DE INMEDIATO
-        // Solo dibujamos la ruta de entrega hacia el cliente final
-        const deliveryStops = (orden.hasPickupTransition && paradas.length >= 3)
-          ? paradas.slice(1)
-          : paradas;
+    if (activeLegPath.length >= 2) {
+      const polyline = L.polyline(activeLegPath, {
+        color: isTransition ? '#38bdf8' : orden.estaDesviado ? '#fbbf24' : '#10b981',
+        weight: 5,
+        opacity: 0.95,
+        dashArray: isTransition ? '6, 6' : orden.estaDesviado ? '6, 4' : '8, 8',
+        lineJoin: 'round',
+      }).addTo(mapInstanceRef.current);
 
-        const fullStreetPath = orden.streetPath || buildFullStreetSequence(deliveryStops);
-        if (fullStreetPath.length >= 2) {
-          const polyline = L.polyline(fullStreetPath, {
-            color: orden.estaDesviado ? '#fbbf24' : '#10b981',
-            weight: 5,
-            opacity: 0.95,
-            dashArray: orden.estaDesviado ? '6, 4' : '8, 8',
-            lineJoin: 'round',
-          }).addTo(mapInstanceRef.current);
-          routePolylineRef.current = polyline;
-        }
-      }
+      routePolylineRef.current = polyline;
     }
   }, [
-    shiftState.ordenActiva,
-    shiftState.ordenActiva?.faseActual,
+    shiftState.ordenActiva?.indiceTramoActual,
+    shiftState.ordenActiva?.tramoActualOrigen,
+    shiftState.ordenActiva?.tramoActualDestino,
     shiftState.ordenActiva?.estaDesviado,
-    shiftState.ordenActiva?.streetPath
+    shiftState.ordenActiva == null
   ]);
 
   // 4. Dibujar incidentes viales (Avenidas cerradas en rojo)
@@ -322,29 +290,32 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
         <span className="text-[10px] text-slate-400 font-mono">GPS Live • 60 FPS</span>
       </div>
 
-      {/* Route Legend in Bottom Left */}
+      {/* Route Legend in Bottom Left (Exactamente una ruta activa mostrada) */}
       <div className="absolute bottom-4 left-4 z-10 bg-slate-950/85 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-[11px] text-slate-300 space-y-1.5 shadow-lg hidden sm:block">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>
           <span>Driver in Transit</span>
         </div>
-        {shiftState.ordenActiva?.hasPickupTransition && shiftState.ordenActiva.faseActual === 'TRANSICION_PICKUP' && (
-          <div className="flex items-center gap-2 text-sky-300 font-medium animate-pulse">
-            <span className="w-4 h-1 border-t-2 border-sky-400 border-dashed"></span>
-            <span>Pickup Transition (To Restaurant)</span>
-          </div>
+
+        {shiftState.ordenActiva && (
+          shiftState.ordenActiva.hasPickupTransition && shiftState.ordenActiva.indiceTramoActual === 0 ? (
+            <div className="flex items-center gap-2 text-sky-300 font-medium animate-pulse">
+              <span className="w-4 h-1 border-t-2 border-sky-400 border-dashed"></span>
+              <span>Pickup Leg ➔ {shiftState.ordenActiva.tramoActualDestino.split(' (')[0]}</span>
+            </div>
+          ) : shiftState.ordenActiva.estaDesviado ? (
+            <div className="flex items-center gap-2 text-amber-300 font-medium">
+              <span className="w-4 h-1 border-t-2 border-amber-400 border-dashed"></span>
+              <span>Detour Leg ➔ {shiftState.ordenActiva.tramoActualDestino.split(' (')[0]}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-emerald-300 font-medium">
+              <span className="w-4 h-1 border-t-2 border-emerald-400 border-dashed"></span>
+              <span>Delivery Leg ➔ {shiftState.ordenActiva.tramoActualDestino.split(' (')[0]}</span>
+            </div>
+          )
         )}
-        {shiftState.ordenActiva?.estaDesviado ? (
-          <div className="flex items-center gap-2 text-amber-300 font-medium">
-            <span className="w-4 h-1 border-t-2 border-amber-400 border-dashed"></span>
-            <span>Dynamic Detour Active (OptiGo AI)</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-emerald-300 font-medium">
-            <span className="w-4 h-1 border-t-2 border-emerald-400 border-dashed"></span>
-            <span>Delivery Route (To Customer)</span>
-          </div>
-        )}
+
         {shiftState.avenidaCerrada && (
           <div className="flex items-center gap-2 text-rose-300 font-medium">
             <span className="w-4 h-1 border-t-2 border-rose-500 border-dashed"></span>
