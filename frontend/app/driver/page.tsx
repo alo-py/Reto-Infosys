@@ -9,6 +9,7 @@ import WeatherAlertBanner from '@/app/ui/Components/Driver/WeatherAlertBanner';
 import DriverEarningsCard from '@/app/ui/Components/Driver/DriverEarningsCard';
 import ActiveOrderCard from '@/app/ui/Components/Driver/ActiveOrderCard';
 import ShiftSummaryModal from '@/app/ui/Components/Driver/ShiftSummaryModal';
+import ScenarioSelectorModal from '@/app/ui/Components/Driver/ScenarioSelectorModal';
 import { 
   ActiveShiftState, 
   MONTERREY_NODES 
@@ -19,6 +20,11 @@ import {
   routeIntersectsBlockage, 
   calculateDetourRoute 
 } from '@/app/ui/Components/Driver/streetRouting';
+import { 
+  ShiftScenarioConfig, 
+  DEFAULT_MONTERREY_SCENARIO, 
+  getAvenueAffectedZones 
+} from '@/app/ui/Components/Driver/scenarios';
 
 // Dynamic loading of Leaflet with SSR disabled
 const DriverMap = dynamic(
@@ -34,77 +40,164 @@ const DriverMap = dynamic(
   }
 );
 
-const createInitialState = (tipo: 'OPTIGO_AI' | 'GREEDY'): ActiveShiftState => ({
-  minuto: 0,
-  duracionTotal: 120,
-  estadoTurno: 'EN_CURSO',
-  estadoConexion: 'DISPONIBLE',
-  tipoAgente: tipo,
-  ubicacionActual: "Centro MTY (Barrio Antiguo)",
-  coordenadasActuales: MONTERREY_NODES["Centro MTY (Barrio Antiguo)"],
+/**
+ * Creates the initial shift state for a given agent and scenario
+ */
+const createInitialState = (
+  tipo: 'OPTIGO_AI' | 'GREEDY',
+  scenario: ShiftScenarioConfig = DEFAULT_MONTERREY_SCENARIO
+): ActiveShiftState => {
+  let clima = "☀️ EXTREME_HEAT (39°C)";
+  let temp = 39;
+  let trafico = 1.10;
+  let surge = 1.0;
+  let avenidaCerrada: string | null = null;
+  let zonasAfectadas: string[] = [];
 
-  gananciaNeta: 0.0,
-  ingresosBrutos: 0.0,
-  gastoGasolina: 0.0,
-  penalizacionesSla: 0.0,
-  pedidosCompletados: 0,
-  batchesRealizados: 0,
-  pedidosConRetraso: 0,
-  kmTotales: 0.0,
-  kmVacio: 0.0,
+  if (scenario.id !== 'DEFAULT_MTY' && scenario.weather !== 'DEFAULT_DYNAMIC') {
+    switch (scenario.weather) {
+      case 'EXTREME_HEAT':
+        clima = "☀️ EXTREME_HEAT (41°C)";
+        temp = 41;
+        break;
+      case 'SEVERE_STORM':
+        clima = "🌧️ SEVERE_STORM (Flooding risk)";
+        temp = 25;
+        break;
+      case 'LIGHT_RAIN':
+        clima = "🌦️ LIGHT_RAIN";
+        temp = 28;
+        break;
+      case 'CLEAR_SUNNY':
+      default:
+        clima = "🌤️ CLEAR & SUNNY (24°C)";
+        temp = 24;
+        break;
+    }
 
-  clima: "☀️ EXTREME_HEAT (39°C)",
-  temperatura: 39,
-  factorTrafico: 1.10,
-  factorSurge: 1.0,
-  avenidaCerrada: null,
-  zonasAfectadas: [],
+    trafico = scenario.traffic === 'SEVERE' ? 1.75 : scenario.traffic === 'MODERATE' ? 1.35 : 1.05;
+    surge = scenario.surgeMultiplier;
+    avenidaCerrada = scenario.roadClosure === 'NONE' ? null : scenario.roadClosure;
+    zonasAfectadas = avenidaCerrada ? getAvenueAffectedZones(scenario.roadClosure) : [];
+  }
 
-  ordenActiva: null,
-});
+  return {
+    minuto: 0,
+    duracionTotal: 120,
+    estadoTurno: 'EN_CURSO',
+    estadoConexion: 'DISPONIBLE',
+    tipoAgente: tipo,
+    ubicacionActual: "Centro MTY (Barrio Antiguo)",
+    coordenadasActuales: MONTERREY_NODES["Centro MTY (Barrio Antiguo)"],
+
+    gananciaNeta: 0.0,
+    ingresosBrutos: 0.0,
+    gastoGasolina: 0.0,
+    penalizacionesSla: 0.0,
+    pedidosCompletados: 0,
+    batchesRealizados: 0,
+    pedidosConRetraso: 0,
+    kmTotales: 0.0,
+    kmVacio: 0.0,
+
+    clima,
+    temperatura: temp,
+    factorTrafico: trafico,
+    factorSurge: surge,
+    avenidaCerrada,
+    zonasAfectadas,
+
+    ordenActiva: null,
+  };
+};
 
 /**
  * Pure function to advance any simulation state forward by N minutes
- * Handles weather, road closures, detours, street navigation, order fulfillment, and metrics
+ * Dynamically computes weather, traffic, road closures, detours, street navigation, and order fulfillment
  */
-function advanceSimulation(prev: ActiveShiftState, minutosAvance: number = 1): ActiveShiftState {
+function advanceSimulation(
+  prev: ActiveShiftState, 
+  scenario: ShiftScenarioConfig, 
+  minutosAvance: number = 1
+): ActiveShiftState {
   if (prev.estadoTurno === 'FINALIZADO') return prev;
 
   const nuevoMinuto = Math.min(prev.minuto + minutosAvance, prev.duracionTotal);
   const isFinished = nuevoMinuto >= prev.duracionTotal;
 
-  // Simulated weather events
-  let clima = prev.clima;
-  let temp = prev.temperatura;
-  let trafico = 1.15;
-  let surge = 1.0;
-  let avenidaCerrada = prev.avenidaCerrada;
-  let zonasAfectadas = prev.zonasAfectadas;
+  // Derive environment and road conditions based on active scenario
+  let clima: string;
+  let temp: number;
+  let trafico: number;
+  let surge: number;
+  let avenidaCerrada: string | null;
+  let zonasAfectadas: string[];
 
-  if (nuevoMinuto >= 35 && nuevoMinuto <= 75) {
-    clima = "🌧️ SEVERE_STORM (Flooding risk)";
-    temp = 26;
-    trafico = 1.65;
-    surge = 1.55;
-  } else if (nuevoMinuto > 75) {
-    clima = "🌦️ LIGHT_RAIN";
-    temp = 29;
-    trafico = 1.25;
-    surge = 1.20;
-  } else {
-    clima = "☀️ EXTREME_HEAT (40°C)";
-    temp = 40;
-    trafico = nuevoMinuto >= 40 ? 1.25 : 1.10;
-    surge = 1.0;
-  }
+  if (scenario.id === 'DEFAULT_MTY' || scenario.weather === 'DEFAULT_DYNAMIC') {
+    // Average Monterrey day dynamic cycle: extreme heat -> afternoon storm -> light rain
+    if (nuevoMinuto >= 35 && nuevoMinuto <= 75) {
+      clima = "🌧️ SEVERE_STORM (Flooding risk)";
+      temp = 26;
+      trafico = 1.65;
+      surge = 1.55;
+    } else if (nuevoMinuto > 75) {
+      clima = "🌦️ LIGHT_RAIN";
+      temp = 29;
+      trafico = 1.25;
+      surge = 1.20;
+    } else {
+      clima = "☀️ EXTREME_HEAT (40°C)";
+      temp = 40;
+      trafico = nuevoMinuto >= 40 ? 1.25 : 1.10;
+      surge = 1.0;
+    }
 
-  // Road closure on Gonzalitos during the storm
-  if (nuevoMinuto >= 45 && nuevoMinuto <= 80) {
-    avenidaCerrada = "Av. Gonzalitos";
-    zonasAfectadas = ["San Nicolás", "Valle Oriente (San Pedro)", "Centrito Valle (San Pedro)"];
+    // Dynamic Road closure on Gonzalitos during storm
+    if (nuevoMinuto >= 45 && nuevoMinuto <= 80) {
+      avenidaCerrada = "Av. Gonzalitos";
+      zonasAfectadas = getAvenueAffectedZones("Av. Gonzalitos");
+    } else {
+      avenidaCerrada = null;
+      zonasAfectadas = [];
+    }
   } else {
-    avenidaCerrada = null;
-    zonasAfectadas = [];
+    // Preset or custom customized shift events
+    switch (scenario.weather) {
+      case 'EXTREME_HEAT':
+        clima = "☀️ EXTREME_HEAT (41°C)";
+        temp = 41;
+        break;
+      case 'SEVERE_STORM':
+        clima = "🌧️ SEVERE_STORM (Flooding risk)";
+        temp = 25;
+        break;
+      case 'LIGHT_RAIN':
+        clima = "🌦️ LIGHT_RAIN";
+        temp = 28;
+        break;
+      case 'CLEAR_SUNNY':
+      default:
+        clima = "🌤️ CLEAR & SUNNY (24°C)";
+        temp = 24;
+        break;
+    }
+
+    switch (scenario.traffic) {
+      case 'SEVERE':
+        trafico = 1.75;
+        break;
+      case 'MODERATE':
+        trafico = 1.35;
+        break;
+      case 'NORMAL':
+      default:
+        trafico = 1.05;
+        break;
+    }
+
+    surge = scenario.surgeMultiplier;
+    avenidaCerrada = scenario.roadClosure === 'NONE' ? null : scenario.roadClosure;
+    zonasAfectadas = avenidaCerrada ? getAvenueAffectedZones(scenario.roadClosure) : [];
   }
 
   let ordenActiva = prev.ordenActiva;
@@ -298,10 +391,15 @@ function advanceSimulation(prev: ActiveShiftState, minutosAvance: number = 1): A
 }
 
 export default function DriverAppPage() {
+  // Configurable Scenario & Shift Events
+  const [scenario, setScenario] = useState<ShiftScenarioConfig>(DEFAULT_MONTERREY_SCENARIO);
+  const scenarioRef = useRef<ShiftScenarioConfig>(scenario);
+  const [isScenarioModalOpen, setIsScenarioModalOpen] = useState<boolean>(false);
+
   // Independent active state for each agent
   const [activeTab, setActiveTab] = useState<'OPTIGO_AI' | 'GREEDY'>('OPTIGO_AI');
-  const [optigoState, setOptigoState] = useState<ActiveShiftState>(() => createInitialState('OPTIGO_AI'));
-  const [greedyState, setGreedyState] = useState<ActiveShiftState>(() => createInitialState('GREEDY'));
+  const [optigoState, setOptigoState] = useState<ActiveShiftState>(() => createInitialState('OPTIGO_AI', DEFAULT_MONTERREY_SCENARIO));
+  const [greedyState, setGreedyState] = useState<ActiveShiftState>(() => createInitialState('GREEDY', DEFAULT_MONTERREY_SCENARIO));
 
   // Dual play states allowing parallel concurrent runs
   const [isOptigoPlaying, setIsOptigoPlaying] = useState<boolean>(false);
@@ -317,7 +415,7 @@ export default function DriverAppPage() {
     if (isOptigoPlaying) {
       optigoTimerRef.current = setInterval(() => {
         setOptigoState((prev) => {
-          const next = advanceSimulation(prev, 1);
+          const next = advanceSimulation(prev, scenarioRef.current, 1);
           if (next.estadoTurno === 'FINALIZADO') {
             setIsOptigoPlaying(false);
           }
@@ -339,7 +437,7 @@ export default function DriverAppPage() {
     if (isGreedyPlaying) {
       greedyTimerRef.current = setInterval(() => {
         setGreedyState((prev) => {
-          const next = advanceSimulation(prev, 1);
+          const next = advanceSimulation(prev, scenarioRef.current, 1);
           if (next.estadoTurno === 'FINALIZADO') {
             setIsGreedyPlaying(false);
           }
@@ -355,7 +453,6 @@ export default function DriverAppPage() {
       if (greedyTimerRef.current) clearInterval(greedyTimerRef.current);
     };
   }, [isGreedyPlaying]);
-
 
   // Tracking if summary pop-up was already displayed for each agent
   const hasShownOptigoSummary = useRef<boolean>(false);
@@ -377,6 +474,85 @@ export default function DriverAppPage() {
   const otherShiftState = activeTab === 'OPTIGO_AI' ? greedyState : optigoState;
   const isCurrentPlaying = activeTab === 'OPTIGO_AI' ? isOptigoPlaying : isGreedyPlaying;
 
+  // Handle Scenario Application
+  const handleApplyScenario = (newScenario: ShiftScenarioConfig) => {
+    setScenario(newScenario);
+    scenarioRef.current = newScenario;
+
+    const applyToState = (st: ActiveShiftState): ActiveShiftState => {
+      let clima = st.clima;
+      let temp = st.temperatura;
+      let trafico = st.factorTrafico;
+      let surge = st.factorSurge;
+      let avenidaCerrada = st.avenidaCerrada;
+      let zonasAfectadas = st.zonasAfectadas;
+
+      if (newScenario.id === 'DEFAULT_MTY' || newScenario.weather === 'DEFAULT_DYNAMIC') {
+        if (st.minuto >= 35 && st.minuto <= 75) {
+          clima = "🌧️ SEVERE_STORM (Flooding risk)";
+          temp = 26;
+          trafico = 1.65;
+          surge = 1.55;
+        } else if (st.minuto > 75) {
+          clima = "🌦️ LIGHT_RAIN";
+          temp = 29;
+          trafico = 1.25;
+          surge = 1.20;
+        } else {
+          clima = "☀️ EXTREME_HEAT (40°C)";
+          temp = 40;
+          trafico = st.minuto >= 40 ? 1.25 : 1.10;
+          surge = 1.0;
+        }
+
+        if (st.minuto >= 45 && st.minuto <= 80) {
+          avenidaCerrada = "Av. Gonzalitos";
+          zonasAfectadas = getAvenueAffectedZones("Av. Gonzalitos");
+        } else {
+          avenidaCerrada = null;
+          zonasAfectadas = [];
+        }
+      } else {
+        switch (newScenario.weather) {
+          case 'EXTREME_HEAT':
+            clima = "☀️ EXTREME_HEAT (41°C)";
+            temp = 41;
+            break;
+          case 'SEVERE_STORM':
+            clima = "🌧️ SEVERE_STORM (Flooding risk)";
+            temp = 25;
+            break;
+          case 'LIGHT_RAIN':
+            clima = "🌦️ LIGHT_RAIN";
+            temp = 28;
+            break;
+          case 'CLEAR_SUNNY':
+          default:
+            clima = "🌤️ CLEAR & SUNNY (24°C)";
+            temp = 24;
+            break;
+        }
+        trafico = newScenario.traffic === 'SEVERE' ? 1.75 : newScenario.traffic === 'MODERATE' ? 1.35 : 1.05;
+        surge = newScenario.surgeMultiplier;
+        avenidaCerrada = newScenario.roadClosure === 'NONE' ? null : newScenario.roadClosure;
+        zonasAfectadas = avenidaCerrada ? getAvenueAffectedZones(newScenario.roadClosure) : [];
+      }
+
+      return {
+        ...st,
+        clima,
+        temperatura: temp,
+        factorTrafico: trafico,
+        factorSurge: surge,
+        avenidaCerrada,
+        zonasAfectadas,
+      };
+    };
+
+    setOptigoState(applyToState);
+    setGreedyState(applyToState);
+  };
+
   // Control handlers
   const handleTogglePlay = () => {
     if (activeTab === 'OPTIGO_AI') {
@@ -390,9 +566,9 @@ export default function DriverAppPage() {
 
   const handleStepForward = (mins: number) => {
     if (activeTab === 'OPTIGO_AI') {
-      setOptigoState((prev) => advanceSimulation(prev, mins));
+      setOptigoState((prev) => advanceSimulation(prev, scenarioRef.current, mins));
     } else {
-      setGreedyState((prev) => advanceSimulation(prev, mins));
+      setGreedyState((prev) => advanceSimulation(prev, scenarioRef.current, mins));
     }
   };
 
@@ -400,11 +576,11 @@ export default function DriverAppPage() {
     if (activeTab === 'OPTIGO_AI') {
       setIsOptigoPlaying(false);
       hasShownOptigoSummary.current = false;
-      setOptigoState(createInitialState('OPTIGO_AI'));
+      setOptigoState(createInitialState('OPTIGO_AI', scenarioRef.current));
     } else {
       setIsGreedyPlaying(false);
       hasShownGreedySummary.current = false;
-      setGreedyState(createInitialState('GREEDY'));
+      setGreedyState(createInitialState('GREEDY', scenarioRef.current));
     }
     setIsSummaryOpen(false);
   };
@@ -476,10 +652,16 @@ export default function DriverAppPage() {
         onEndShift={handleEndShift}
         onSelectTab={(tab) => handleSelectTab(tab, false)}
         onOpenComparison={() => setIsSummaryOpen(true)}
+        currentScenario={scenario}
+        onOpenScenarioModal={() => setIsScenarioModalOpen(true)}
       />
 
-      {/* Weather Alert and Roadblock Banner */}
-      <WeatherAlertBanner shiftState={currentShiftState} />
+      {/* Weather Alert and Roadblock Banner with Scenario Config */}
+      <WeatherAlertBanner 
+        shiftState={currentShiftState}
+        currentScenario={scenario}
+        onOpenScenarioModal={() => setIsScenarioModalOpen(true)}
+      />
 
       {/* Main Grid: Map on left / Earnings & Active Order on right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch flex-1">
@@ -504,6 +686,14 @@ export default function DriverAppPage() {
         onSwitchTab={(tab) => handleSelectTab(tab, true)}
         onClose={() => setIsSummaryOpen(false)}
         onRestartShift={handleResetShift}
+      />
+
+      {/* Shift Scenario & Event Selector Modal */}
+      <ScenarioSelectorModal
+        isOpen={isScenarioModalOpen}
+        currentScenario={scenario}
+        onApplyScenario={handleApplyScenario}
+        onClose={() => setIsScenarioModalOpen(false)}
       />
     </div>
   );

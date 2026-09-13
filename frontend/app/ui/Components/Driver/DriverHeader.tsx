@@ -8,9 +8,11 @@ import {
   Bot, 
   User, 
   Clock, 
-  Flag 
+  Flag,
+  Sliders 
 } from 'lucide-react';
 import { ActiveShiftState } from './types';
+import { ShiftScenarioConfig } from './scenarios';
 
 interface DriverHeaderProps {
   activeTab: 'OPTIGO_AI' | 'GREEDY';
@@ -26,6 +28,8 @@ interface DriverHeaderProps {
   onEndShift: () => void;
   onSelectTab: (tab: 'OPTIGO_AI' | 'GREEDY') => void;
   onOpenComparison?: () => void;
+  currentScenario?: ShiftScenarioConfig;
+  onOpenScenarioModal?: () => void;
 }
 
 export default function DriverHeader({
@@ -42,6 +46,8 @@ export default function DriverHeader({
   onEndShift,
   onSelectTab,
   onOpenComparison,
+  currentScenario,
+  onOpenScenarioModal,
 }: DriverHeaderProps) {
   const isOnline = shiftState.estadoConexion !== 'DESCONECTADO';
   const progressPct = Math.min(100, Math.round((shiftState.minuto / shiftState.duracionTotal) * 100));
@@ -130,6 +136,18 @@ export default function DriverHeader({
             title="Compare dual simulation results"
           >
             <span>Compare Results</span>
+          </button>
+        )}
+
+        {onOpenScenarioModal && (
+          <button
+            type="button"
+            onClick={onOpenScenarioModal}
+            className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 flex items-center gap-1.5 shadow-sm transition-all"
+            title="Configure shift weather, traffic & road events"
+          >
+            <Sliders className="w-3.5 h-3.5 text-emerald-300" />
+            <span>Scenario: {currentScenario ? currentScenario.name.split(' ')[0] : 'Monterrey'}</span>
           </button>
         )}
       </div>

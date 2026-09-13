@@ -7,15 +7,24 @@ import {
   Snowflake, 
   AlertTriangle, 
   ShieldCheck, 
-  Flame 
+  Flame,
+  Sliders,
+  Sparkles
 } from 'lucide-react';
 import { ActiveShiftState } from './types';
+import { ShiftScenarioConfig } from './scenarios';
 
 interface WeatherAlertBannerProps {
   shiftState: ActiveShiftState;
+  currentScenario?: ShiftScenarioConfig;
+  onOpenScenarioModal?: () => void;
 }
 
-export default function WeatherAlertBanner({ shiftState }: WeatherAlertBannerProps) {
+export default function WeatherAlertBanner({ 
+  shiftState,
+  currentScenario,
+  onOpenScenarioModal
+}: WeatherAlertBannerProps) {
   const isExtremeWeather =
     shiftState.clima.includes('STORM') ||
     shiftState.clima.includes('TORMENTA') ||
@@ -112,6 +121,32 @@ export default function WeatherAlertBanner({ shiftState }: WeatherAlertBannerPro
           </div>
         </div>
       ) : null}
+
+      {/* 3. Active Scenario Info & Config Button */}
+      {onOpenScenarioModal && (
+        <button
+          type="button"
+          onClick={onOpenScenarioModal}
+          className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-2xl p-2.5 sm:px-3 shadow-lg flex items-center justify-between gap-2.5 text-left transition-all group shrink-0 cursor-pointer"
+          title="Change simulation events & scenario"
+        >
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 group-hover:scale-105 transition-transform">
+              <Sliders className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-[9px] text-slate-300 uppercase font-mono leading-none">Shift Events</div>
+              <div className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors flex items-center gap-1">
+                {currentScenario?.id === 'DEFAULT_MTY' && <Sparkles className="w-3 h-3 text-amber-400 fill-current" />}
+                <span>{currentScenario ? currentScenario.name : 'Average Monterrey Day'}</span>
+              </div>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded-lg border border-emerald-400/30 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+            Configure
+          </span>
+        </button>
+      )}
     </div>
   );
 }
