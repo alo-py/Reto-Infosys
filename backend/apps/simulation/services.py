@@ -50,6 +50,17 @@ class ShiftExecutionService:
             ubicacion_inicial=self.bloque.zona_cobertura,
             explicador=self.explicador
         )
+        # Restore accumulated state from BloqueTurno if continuing an ongoing shift
+        self.repartidor.ganancia_neta_total = float(self.bloque.ganancia_neta_total)
+        self.repartidor.ingresos_brutos = float(self.bloque.ingresos_brutos)
+        self.repartidor.gasto_gasolina_total = float(self.bloque.gasto_gasolina_total)
+        self.repartidor.pedidos_completados = self.bloque.pedidos_completados
+        self.repartidor.batches_realizados = self.bloque.batches_realizados
+        self.repartidor.pedidos_con_retraso = self.bloque.pedidos_con_retraso
+        self.repartidor.penalizaciones_sla_total = float(self.bloque.penalizaciones_sla_total)
+        self.repartidor.km_totales = float(self.bloque.km_totales)
+        self.repartidor.km_en_vacio = float(self.bloque.km_en_vacio)
+        self.repartidor.disponible_en_minuto = self.bloque.minuto_progreso
 
     def ejecutar_paso(self, minutos_avance: int = 1) -> dict:
         """Avanza N minutos el bloque de turno y registra telemetría y decisiones en PostgreSQL."""
@@ -127,6 +138,7 @@ class ShiftExecutionService:
 
         # Actualizar estado acumulado del Bloque de Turno en DB
         self.bloque.minuto_progreso = minuto_objetivo
+        self.bloque.zona_cobertura = self.repartidor.ubicacion_actual
         self.bloque.ganancia_neta_total = self.repartidor.ganancia_neta_total
         self.bloque.ingresos_brutos = self.repartidor.ingresos_brutos
         self.bloque.gasto_gasolina_total = self.repartidor.gasto_gasolina_total
@@ -147,7 +159,16 @@ class ShiftExecutionService:
             "minuto_actual": self.bloque.minuto_progreso,
             "duracion_total": self.bloque.duracion_programada_min,
             "estado_turno": self.bloque.estado_turno,
+            "ubicacion_actual": self.repartidor.ubicacion_actual,
+            "disponible_en_minuto": self.repartidor.disponible_en_minuto,
             "ganancia_neta": float(self.bloque.ganancia_neta_total),
+            "ingresos_brutos": float(self.bloque.ingresos_brutos),
+            "gasto_gasolina": float(self.bloque.gasto_gasolina_total),
             "pedidos_completados": self.bloque.pedidos_completados,
+            "batches_realizados": self.bloque.batches_realizados,
+            "pedidos_con_retraso": self.bloque.pedidos_con_retraso,
+            "penalizaciones_sla": float(self.bloque.penalizaciones_sla_total),
+            "km_totales": float(self.bloque.km_totales),
+            "km_en_vacio": float(self.bloque.km_en_vacio),
             "decisiones_en_este_paso": decisiones_tomadas
         }

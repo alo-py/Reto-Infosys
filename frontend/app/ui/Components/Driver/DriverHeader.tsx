@@ -30,6 +30,8 @@ interface DriverHeaderProps {
   onOpenComparison?: () => void;
   currentScenario?: ShiftScenarioConfig;
   onOpenScenarioModal?: () => void;
+  isBackendConnected?: boolean;
+  backendShiftId?: string | null;
 }
 
 export default function DriverHeader({
@@ -48,6 +50,8 @@ export default function DriverHeader({
   onOpenComparison,
   currentScenario,
   onOpenScenarioModal,
+  isBackendConnected,
+  backendShiftId,
 }: DriverHeaderProps) {
   const isOnline = shiftState.estadoConexion !== 'DESCONECTADO';
   const progressPct = Math.min(100, Math.round((shiftState.minuto / shiftState.duracionTotal) * 100));
@@ -65,7 +69,7 @@ export default function DriverHeader({
 
   return (
     <header className="w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-      {/* 1. Connection Status and Dual Simulation Tabs */}
+      {/* 1. Connection Status, Backend Live Indicator and Dual Simulation Tabs */}
       <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start flex-wrap">
         <div className="flex items-center gap-2.5 bg-slate-950/40 border border-white/15 px-3 py-1.5 rounded-2xl backdrop-blur-md">
           <span className={`w-3 h-3 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_10px_#10b981] animate-pulse' : 'bg-slate-500'}`} />
@@ -73,6 +77,25 @@ export default function DriverHeader({
             <div className="text-[10px] text-slate-300 font-mono leading-none">STATUS</div>
             <div className="text-xs font-bold text-white leading-tight">
               {shiftState.estadoTurno === 'FINALIZADO' ? 'Shift Completed' : isOnline ? 'Online' : 'Offline'}
+            </div>
+          </div>
+        </div>
+
+        {/* Django Backend Live Connection Indicator */}
+        <div className="flex items-center gap-2 bg-slate-950/40 border border-white/15 px-3 py-1.5 rounded-2xl backdrop-blur-md">
+          <span className={`w-2.5 h-2.5 rounded-full ${isBackendConnected ? 'bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse' : 'bg-amber-400'}`} />
+          <div className="text-left">
+            <div className="text-[9px] text-slate-400 font-mono leading-none">ENGINE</div>
+            <div className="text-xs font-bold leading-tight">
+              {isBackendConnected ? (
+                <span className="text-emerald-300" title={backendShiftId ? `Django Shift ID: ${backendShiftId}` : 'Django REST API'}>
+                  Django Live
+                </span>
+              ) : (
+                <span className="text-amber-300" title="Django server offline - running on local client engine">
+                  Local Simulation
+                </span>
+              )}
             </div>
           </div>
         </div>

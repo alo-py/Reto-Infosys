@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ArrowLeft, Car } from 'lucide-react';
@@ -12,7 +12,8 @@ import ShiftSummaryModal from '@/app/ui/Components/Driver/ShiftSummaryModal';
 import ScenarioSelectorModal from '@/app/ui/Components/Driver/ScenarioSelectorModal';
 import { 
   ActiveShiftState, 
-  MONTERREY_NODES 
+  MONTERREY_NODES,
+  ZoneName 
 } from '@/app/ui/Components/Driver/types';
 import { 
   buildFullStreetSequence, 
@@ -25,6 +26,12 @@ import {
   DEFAULT_MONTERREY_SCENARIO, 
   getAvenueAffectedZones 
 } from '@/app/ui/Components/Driver/scenarios';
+import { 
+  checkBackendHealth, 
+  startBackendShift, 
+  stepBackendShift, 
+  endBackendShift 
+} from '@/app/services/api';
 
 // Dynamic loading of Leaflet with SSR disabled
 const DriverMap = dynamic(
@@ -396,6 +403,11 @@ export default function DriverAppPage() {
   const scenarioRef = useRef<ShiftScenarioConfig>(scenario);
   const [isScenarioModalOpen, setIsScenarioModalOpen] = useState<boolean>(false);
 
+  // Backend Integration State
+  const [isBackendConnected, setIsBackendConnected] = useState<boolean>(false);
+  const optigoBackendIdRef = useRef<string | null>(null);
+  const greedyBackendIdRef = useRef<string | null>(null);
+
   // Independent active state for each agent
   const [activeTab, setActiveTab] = useState<'OPTIGO_AI' | 'GREEDY'>('OPTIGO_AI');
   const [optigoState, setOptigoState] = useState<ActiveShiftState>(() => createInitialState('OPTIGO_AI', DEFAULT_MONTERREY_SCENARIO));
@@ -410,49 +422,20 @@ export default function DriverAppPage() {
   const optigoTimerRef = useRef<NodeJS.Timeout | null>(null);
   const greedyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // OptiGo AI auto-run interval
+  // Check Django backend connectivity on load and every 15s
   useEffect(() => {
-    if (isOptigoPlaying) {
-      optigoTimerRef.current = setInterval(() => {
-        setOptigoState((prev) => {
-          const next = advanceSimulation(prev, scenarioRef.current, 1);
-          if (next.estadoTurno === 'FINALIZADO') {
-            setIsOptigoPlaying(false);
-          }
-          return next;
-        });
-      }, 600);
-    } else if (optigoTimerRef.current) {
-      clearInterval(optigoTimerRef.current);
-      optigoTimerRef.current = null;
-    }
-
-    return () => {
-      if (optigoTimerRef.current) clearInterval(optigoTimerRef.current);
+    let isMounted = true;
+    const check = async () => {
+      const alive = await checkBackendHealth();
+      if (isMounted) setIsBackendConnected(alive);
     };
-  }, [isOptigoPlaying]);
-
-  // Greedy Base auto-run interval
-  useEffect(() => {
-    if (isGreedyPlaying) {
-      greedyTimerRef.current = setInterval(() => {
-        setGreedyState((prev) => {
-          const next = advanceSimulation(prev, scenarioRef.current, 1);
-          if (next.estadoTurno === 'FINALIZADO') {
-            setIsGreedyPlaying(false);
-          }
-          return next;
-        });
-      }, 600);
-    } else if (greedyTimerRef.current) {
-      clearInterval(greedyTimerRef.current);
-      greedyTimerRef.current = null;
-    }
-
+    check();
+    const interval = setInterval(check, 15000);
     return () => {
-      if (greedyTimerRef.current) clearInterval(greedyTimerRef.current);
+      isMounted = false;
+      clearInterval(interval);
     };
-  }, [isGreedyPlaying]);
+  }, []);
 
   // Tracking if summary pop-up was already displayed for each agent
   const hasShownOptigoSummary = useRef<boolean>(false);
@@ -473,6 +456,174 @@ export default function DriverAppPage() {
   const currentShiftState = activeTab === 'OPTIGO_AI' ? optigoState : greedyState;
   const otherShiftState = activeTab === 'OPTIGO_AI' ? greedyState : optigoState;
   const isCurrentPlaying = activeTab === 'OPTIGO_AI' ? isOptigoPlaying : isGreedyPlaying;
+
+  // Real-time step execution supporting both live Django backend and client engine fallback
+  const stepSimulation = useCallback(async (tipo: 'OPTIGO_AI' | 'GREEDY', mins: number = 1) => {
+    const isOptigo = tipo === 'OPTIGO_AI';
+    const backendIdRef = isOptigo ? optigoBackendIdRef : greedyBackendIdRef;
+    const setShift = isOptigo ? setOptigoState : setGreedyState;
+    const setIsPlaying = isOptigo ? setIsOptigoPlaying : setIsGreedyPlaying;
+
+    if (isBackendConnected) {
+      try {
+        // If not started on Django backend yet, create the shift in PostgreSQL/SQLite
+        if (!backendIdRef.current) {
+          const created = await startBackendShift(tipo, 120);
+          backendIdRef.current = created.id;
+        }
+
+        // Advance simulation on Django (runs OR-Tools, OSMnx, Kaggle, PostgreSQL)
+        const stepRes = await stepBackendShift(backendIdRef.current, mins);
+        const progreso = stepRes.progreso;
+        const turno = stepRes.turno;
+        const env = turno.ultimo_estado_entorno;
+
+        setShift((prev) => {
+          if (prev.estadoTurno === 'FINALIZADO') return prev;
+          const isFinished = progreso.estado_turno === 'FINALIZADO' || progreso.minuto_actual >= prev.duracionTotal;
+          if (isFinished) setIsPlaying(false);
+
+          let ubicacionActual = prev.ubicacionActual;
+          if (progreso.ubicacion_actual && MONTERREY_NODES[progreso.ubicacion_actual as ZoneName]) {
+            ubicacionActual = progreso.ubicacion_actual as ZoneName;
+          }
+
+          let logExplicativo = prev.ordenActiva?.logExplicativo || '';
+          if (progreso.decisiones_en_este_paso && progreso.decisiones_en_este_paso.length > 0) {
+            logExplicativo = progreso.decisiones_en_este_paso[progreso.decisiones_en_este_paso.length - 1].log;
+          }
+
+          let ordenActiva = prev.ordenActiva;
+          let coordenadasActuales = MONTERREY_NODES[ubicacionActual] || prev.coordenadasActuales;
+
+          const duracion = Math.max(1, (ordenActiva?.minutoFinViaje || 15) - (ordenActiva?.minutoInicioViaje || 0));
+          const transcurrido = Math.max(0, progreso.minuto_actual - (ordenActiva?.minutoInicioViaje || 0));
+          const ratio = Math.min(1.0, transcurrido / duracion);
+
+          if (ordenActiva) {
+            const streetPath = ordenActiva.streetPath || buildFullStreetSequence(ordenActiva.paradasSecuencia);
+            if (streetPath.length >= 2) {
+              const numSegs = streetPath.length - 1;
+              const scaled = ratio * numSegs;
+              const idxSeg = Math.min(Math.floor(scaled), numSegs - 1);
+              const tSeg = scaled - idxSeg;
+              const pA = streetPath[idxSeg];
+              const pB = streetPath[idxSeg + 1];
+              if (pA && pB) {
+                coordenadasActuales = {
+                  lat: Number((pA[0] + (pB[0] - pA[0]) * tSeg).toFixed(5)),
+                  lng: Number((pA[1] + (pB[1] - pA[1]) * tSeg).toFixed(5)),
+                };
+              }
+            }
+
+            if (progreso.minuto_actual >= ordenActiva.minutoFinViaje) {
+              ordenActiva = null;
+            }
+          }
+
+          if (!ordenActiva && !isFinished) {
+            const plan = getNextOrderPlan(
+              ubicacionActual,
+              tipo === 'OPTIGO_AI',
+              env?.factor_surge || 1.0,
+              env?.avenida_cerrada || null
+            );
+            const streetPath = buildFullStreetSequence(plan.paradasSecuencia);
+            ordenActiva = {
+              tipo: plan.tipo,
+              pedidos: [],
+              origen: plan.origen,
+              destino: plan.destino,
+              paradasSecuencia: plan.paradasSecuencia,
+              minutoInicioViaje: progreso.minuto_actual,
+              minutoFinViaje: progreso.minuto_actual + plan.duracionViaje,
+              tarifaTotal: Number(((plan.tarifaBase * (env?.factor_surge || 1.0)) + plan.propina).toFixed(2)),
+              propinaTotal: plan.propina,
+              logExplicativo: logExplicativo || plan.logExplicativo,
+              hasPickupTransition: plan.hasPickupTransition,
+              transicionDesde: plan.transicionDesde,
+              faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
+              streetPath,
+              estaDesviado: plan.estaDesviado,
+              desvioExplicacion: plan.desvioExplicacion,
+              indiceTramoActual: 0,
+              tramoActualOrigen: plan.paradasSecuencia[0],
+              tramoActualDestino: plan.paradasSecuencia[1],
+            };
+          }
+
+          return {
+            ...prev,
+            minuto: progreso.minuto_actual,
+            estadoTurno: isFinished ? 'FINALIZADO' : 'EN_CURSO',
+            estadoConexion: isFinished ? 'DESCONECTADO' : (ordenActiva?.faseActual === 'TRANSICION_PICKUP' ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY'),
+            gananciaNeta: progreso.ganancia_neta,
+            ingresosBrutos: progreso.ingresos_brutos || parseFloat(turno.ingresos_brutos || '0'),
+            gastoGasolina: progreso.gasto_gasolina || parseFloat(turno.gasto_gasolina_total || '0'),
+            pedidosCompletados: progreso.pedidos_completados,
+            batchesRealizados: progreso.batches_realizados ?? turno.batches_realizados,
+            pedidosConRetraso: progreso.pedidos_con_retraso ?? turno.pedidos_con_retraso,
+            penalizacionesSla: progreso.penalizaciones_sla ?? parseFloat(turno.penalizaciones_sla_total || '0'),
+            kmTotales: progreso.km_totales ?? parseFloat(turno.km_totales || '0'),
+            kmVacio: progreso.km_en_vacio ?? parseFloat(turno.km_en_vacio || '0'),
+            clima: env?.clima || prev.clima,
+            temperatura: env?.temperatura_c ?? prev.temperatura,
+            factorTrafico: env?.factor_trafico ?? prev.factorTrafico,
+            factorSurge: env?.factor_surge ?? prev.factorSurge,
+            avenidaCerrada: env?.avenida_cerrada ?? null,
+            zonasAfectadas: env?.zonas_afectadas ?? [],
+            ubicacionActual,
+            coordenadasActuales,
+            ordenActiva,
+          };
+        });
+
+        return;
+      } catch (err) {
+        console.warn("Django backend call failed, using client engine fallback:", err);
+      }
+    }
+
+    // Fallback: Client simulation engine
+    setShift((prev) => {
+      const next = advanceSimulation(prev, scenarioRef.current, mins);
+      if (next.estadoTurno === 'FINALIZADO') setIsPlaying(false);
+      return next;
+    });
+  }, [isBackendConnected]);
+
+  // OptiGo AI auto-run interval
+  useEffect(() => {
+    if (isOptigoPlaying) {
+      optigoTimerRef.current = setInterval(() => {
+        stepSimulation('OPTIGO_AI', 1);
+      }, 700);
+    } else if (optigoTimerRef.current) {
+      clearInterval(optigoTimerRef.current);
+      optigoTimerRef.current = null;
+    }
+
+    return () => {
+      if (optigoTimerRef.current) clearInterval(optigoTimerRef.current);
+    };
+  }, [isOptigoPlaying, stepSimulation]);
+
+  // Greedy Base auto-run interval
+  useEffect(() => {
+    if (isGreedyPlaying) {
+      greedyTimerRef.current = setInterval(() => {
+        stepSimulation('GREEDY', 1);
+      }, 700);
+    } else if (greedyTimerRef.current) {
+      clearInterval(greedyTimerRef.current);
+      greedyTimerRef.current = null;
+    }
+
+    return () => {
+      if (greedyTimerRef.current) clearInterval(greedyTimerRef.current);
+    };
+  }, [isGreedyPlaying, stepSimulation]);
 
   // Handle Scenario Application
   const handleApplyScenario = (newScenario: ShiftScenarioConfig) => {
@@ -565,28 +716,36 @@ export default function DriverAppPage() {
   };
 
   const handleStepForward = (mins: number) => {
-    if (activeTab === 'OPTIGO_AI') {
-      setOptigoState((prev) => advanceSimulation(prev, scenarioRef.current, mins));
-    } else {
-      setGreedyState((prev) => advanceSimulation(prev, scenarioRef.current, mins));
-    }
+    stepSimulation(activeTab, mins);
   };
 
   const handleResetShift = () => {
     if (activeTab === 'OPTIGO_AI') {
       setIsOptigoPlaying(false);
       hasShownOptigoSummary.current = false;
+      optigoBackendIdRef.current = null;
       setOptigoState(createInitialState('OPTIGO_AI', scenarioRef.current));
     } else {
       setIsGreedyPlaying(false);
       hasShownGreedySummary.current = false;
+      greedyBackendIdRef.current = null;
       setGreedyState(createInitialState('GREEDY', scenarioRef.current));
     }
     setIsSummaryOpen(false);
   };
 
-  const handleEndShift = () => {
-    if (activeTab === 'OPTIGO_AI') {
+  const handleEndShift = async () => {
+    const isOptigo = activeTab === 'OPTIGO_AI';
+    const backendId = isOptigo ? optigoBackendIdRef.current : greedyBackendIdRef.current;
+    if (backendId && isBackendConnected) {
+      try {
+        await endBackendShift(backendId);
+      } catch (e) {
+        console.warn("Could not end shift on Django backend:", e);
+      }
+    }
+
+    if (isOptigo) {
       setIsOptigoPlaying(false);
       hasShownOptigoSummary.current = true;
       setOptigoState((prev) => ({
@@ -654,6 +813,8 @@ export default function DriverAppPage() {
         onOpenComparison={() => setIsSummaryOpen(true)}
         currentScenario={scenario}
         onOpenScenarioModal={() => setIsScenarioModalOpen(true)}
+        isBackendConnected={isBackendConnected}
+        backendShiftId={activeTab === 'OPTIGO_AI' ? optigoBackendIdRef.current : greedyBackendIdRef.current}
       />
 
       {/* Weather Alert and Roadblock Banner with Scenario Config */}
