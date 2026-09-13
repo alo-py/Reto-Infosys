@@ -951,14 +951,14 @@ export default function DriverAppPage() {
       />
 
       {/* Main Grid: Map on left / Earnings & Active Order on right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch flex-1">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start flex-1">
         {/* Monterrey Interactive Map (7 Columns on Desktop) */}
-        <div className="lg:col-span-7 flex flex-col">
+        <div className="lg:col-span-7 flex flex-col lg:sticky lg:top-4">
           <DriverMap shiftState={currentShiftState} />
         </div>
 
         {/* Real-Time Earnings & Active Order Card (5 Columns) */}
-        <div className="lg:col-span-5 flex flex-col gap-5 justify-between">
+        <div className="lg:col-span-5 flex flex-col gap-5">
           <DriverEarningsCard shiftState={currentShiftState} />
           <ActiveOrderCard 
             shiftState={currentShiftState}

@@ -18,3 +18,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Leaflet Dark Theme & Resize Fixes */
+.leaflet-container {
+  background-color: #020617 !important;
+  outline: none;
+}
+

@@ -132,7 +132,17 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
     driverMarkerRef.current = driverMarker;
     mapInstanceRef.current = map;
 
+    // Observer para ajustar el canvas de Leaflet dinámicamente si el contenedor cambia de tamaño
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     return () => {
+      resizeObserver.disconnect();
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -311,9 +321,9 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   }, [shiftState.avenidaCerrada]);
 
   return (
-    <div className="isolate relative z-0 w-full h-full min-h-[480px] lg:min-h-[580px] rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-slate-950">
+    <div className="isolate relative z-0 w-full h-full min-h-[500px] lg:min-h-[620px] rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-slate-950">
       {/* Contenedor del mapa de Leaflet */}
-      <div ref={mapContainerRef} className="w-full h-full" />
+      <div ref={mapContainerRef} className="w-full h-full bg-slate-950" />
 
       {/* Monterrey Live Compass & Watermark */}
       <div className="absolute top-4 left-4 z-10 bg-slate-950/80 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-1.5 text-xs text-slate-200 flex items-center gap-2 shadow-lg">
