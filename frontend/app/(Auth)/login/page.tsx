@@ -14,7 +14,7 @@ import {
   Zap,
   CheckCircle2,
 } from 'lucide-react';
-import { loginUser } from '@/app/services/api';
+import { loginUser } from '@/app/services/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,14 +38,18 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const response = await loginUser({ email, password });
+      await loginUser({ email, password });
       setSuccessMessage('Login successful! Redirecting to driver cockpit...');
       setTimeout(() => {
         router.push('/driver');
       }, 700);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMessage(err.message);
+        if (err.message.includes('not a function')) {
+          setErrorMessage('Session module updated. Please reload the page (Ctrl + Shift + R) and try again.');
+        } else {
+          setErrorMessage(err.message);
+        }
       } else {
         setErrorMessage('Failed to sign in. Please verify your credentials.');
       }

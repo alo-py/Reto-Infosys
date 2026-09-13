@@ -25,7 +25,7 @@ import {
   MONTERREY_BASE_ZONES,
   VEHICLE_CONFIGS,
   RegisterPayload,
-} from '@/app/services/api';
+} from '@/app/services/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
