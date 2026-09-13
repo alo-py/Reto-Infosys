@@ -1,7 +1,14 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import { 
+  Navigation, 
+  Radio, 
+  AlertCircle, 
+  X,
+  Crosshair
+} from 'lucide-react';
 import { 
   ActiveShiftState, 
   MONTERREY_NODES, 
@@ -13,6 +20,16 @@ import { buildFullStreetSequence, getStreetPath } from './streetRouting';
 
 interface DriverMapProps {
   shiftState: ActiveShiftState;
+}
+
+export interface DeviceTelemetry {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  speed: number | null; // km/h
+  heading: number | null; // degrees
+  altitude: number | null;
+  timestamp: number;
 }
 
 // Función para calcular el rumbo (heading / bearing) en grados entre dos puntos GPS
@@ -44,11 +61,147 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   const pickupPolylineRef = useRef<L.Polyline | null>(null);
   const incidentPolylinesRef = useRef<L.Polyline[]>([]);
 
+  // Telemetría GPS Real del Dispositivo
+  const [isLiveGpsActive, setIsLiveGpsActive] = useState<boolean>(false);
+  const [deviceTelemetry, setDeviceTelemetry] = useState<DeviceTelemetry | null>(null);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const deviceMarkerRef = useRef<L.Marker | null>(null);
+  const deviceAccuracyCircleRef = useRef<L.Circle | null>(null);
+
   // Referencias para la animación continua de movimiento fluido (60 FPS)
   const currentCoordsRef = useRef<LocationCoord>(shiftState.coordenadasActuales);
   const animationFrameRef = useRef<number | null>(null);
   const currentBearingRef = useRef<number>(0);
   const lastAgentRef = useRef<'OPTIGO_AI' | 'GREEDY'>(shiftState.tipoAgente);
+
+  // Limpieza del observador de geolocalización al desmontar
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null && typeof window !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
+
+  // Alternar lectura de Telemetría Real del Dispositivo
+  const toggleLiveGps = () => {
+    if (isLiveGpsActive) {
+      // Detener seguimiento
+      if (watchIdRef.current !== null && typeof window !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (deviceMarkerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(deviceMarkerRef.current);
+        deviceMarkerRef.current = null;
+      }
+      if (deviceAccuracyCircleRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(deviceAccuracyCircleRef.current);
+        deviceAccuracyCircleRef.current = null;
+      }
+      setIsLiveGpsActive(false);
+      setDeviceTelemetry(null);
+      setGpsError(null);
+
+      // Re-centrar cámara en la posición simulada de Monterrey
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo([currentCoordsRef.current.lat, currentCoordsRef.current.lng], 13, {
+          duration: 1.2
+        });
+      }
+    } else {
+      // Iniciar seguimiento
+      if (typeof window === 'undefined' || !navigator.geolocation) {
+        setGpsError('Geolocation is not supported by your browser or device.');
+        return;
+      }
+
+      setGpsError(null);
+      setIsLiveGpsActive(true);
+
+      const id = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy, speed, heading, altitude } = pos.coords;
+          const telemetry: DeviceTelemetry = {
+            lat: latitude,
+            lng: longitude,
+            accuracy: Math.round(accuracy),
+            speed: speed !== null ? Math.round(speed * 3.6) : null, // m/s a km/h
+            heading: heading !== null ? Math.round(heading) : null,
+            altitude: altitude !== null ? Math.round(altitude) : null,
+            timestamp: pos.timestamp,
+          };
+          setDeviceTelemetry(telemetry);
+
+          if (!mapInstanceRef.current) return;
+          const map = mapInstanceRef.current;
+
+          const deviceHtml = `
+            <div class="relative flex items-center justify-center">
+              <div class="w-8 h-8 rounded-full bg-cyan-500/25 border-2 border-cyan-400 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.9)] animate-pulse">
+                <div class="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-md"></div>
+              </div>
+              <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded bg-slate-950/90 border border-cyan-400/40 text-[9px] font-bold text-cyan-300 shadow-md backdrop-blur-xs">
+                My Device GPS
+              </div>
+            </div>
+          `;
+
+          const deviceIcon = L.divIcon({
+            html: deviceHtml,
+            className: 'custom-device-icon',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+          });
+
+          if (!deviceMarkerRef.current) {
+            deviceMarkerRef.current = L.marker([latitude, longitude], {
+              icon: deviceIcon,
+              zIndexOffset: 1200,
+            }).addTo(map);
+
+            deviceAccuracyCircleRef.current = L.circle([latitude, longitude], {
+              radius: accuracy,
+              color: '#06b6d4',
+              fillColor: '#06b6d4',
+              fillOpacity: 0.12,
+              weight: 1.5,
+            }).addTo(map);
+
+            // Centrar la vista del mapa en la posición real del dispositivo
+            map.flyTo([latitude, longitude], 15, { duration: 1.5 });
+          } else {
+            deviceMarkerRef.current.setLatLng([latitude, longitude]);
+            if (deviceAccuracyCircleRef.current) {
+              deviceAccuracyCircleRef.current.setLatLng([latitude, longitude]);
+              deviceAccuracyCircleRef.current.setRadius(accuracy);
+            }
+          }
+        },
+        (err) => {
+          console.warn('Geolocation watch error:', err);
+          let msg = 'Unable to acquire device GPS position.';
+          if (err.code === err.PERMISSION_DENIED) {
+            msg = 'Location permission was denied. Please allow GPS access in your browser settings.';
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            msg = 'GPS signal is currently unavailable.';
+          } else if (err.code === err.TIMEOUT) {
+            msg = 'GPS location request timed out.';
+          }
+          setGpsError(msg);
+          setIsLiveGpsActive(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 1000,
+        }
+      );
+
+      watchIdRef.current = id;
+    }
+  };
 
   // 1. Inicializar el mapa de Monterrey una sola vez
   useEffect(() => {
@@ -326,14 +479,76 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
       {/* Monterrey Live Compass & Watermark */}
-      <div className="absolute top-4 left-4 z-10 bg-slate-950/80 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-1.5 text-xs text-slate-200 flex items-center gap-2 shadow-lg">
+      <div className="absolute top-4 left-4 z-[1000] bg-slate-950/85 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-1.5 text-xs text-slate-200 flex items-center gap-2 shadow-lg">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         <span className="font-semibold text-white">Monterrey Metropolitan Area</span>
         <span className="text-[10px] text-slate-400 font-mono">GPS Live • 60 FPS</span>
       </div>
 
+      {/* Floating Toggle Button: Read Real Device GPS Telemetry */}
+      <button
+        type="button"
+        onClick={toggleLiveGps}
+        className={`absolute top-20 right-3 z-[1000] px-3 py-2 rounded-2xl border transition-all shadow-xl backdrop-blur-md flex items-center gap-2 text-xs font-bold cursor-pointer ${
+          isLiveGpsActive
+            ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.6)] scale-[1.02]'
+            : 'bg-slate-950/85 hover:bg-slate-900 border-white/20 text-slate-200 hover:text-white'
+        }`}
+        title={isLiveGpsActive ? 'Click to disable device live GPS' : 'Click to track device real location & telemetry'}
+      >
+        <Navigation className={`w-4 h-4 ${isLiveGpsActive ? 'text-slate-950 fill-current animate-pulse' : 'text-cyan-400'}`} />
+        <span>{isLiveGpsActive ? 'GPS Active' : 'Read Device GPS'}</span>
+      </button>
+
+      {/* Real-Time Device Telemetry HUD Overlay */}
+      {isLiveGpsActive && deviceTelemetry && (
+        <div className="absolute top-16 left-4 z-[1000] bg-slate-950/90 backdrop-blur-md border border-cyan-400/50 rounded-2xl p-3 text-xs text-slate-200 shadow-2xl space-y-1.5 animate-fade-in max-w-xs">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-1.5">
+            <div className="flex items-center gap-1.5 text-cyan-300 font-bold text-xs">
+              <Radio className="w-3.5 h-3.5 animate-pulse text-cyan-400" />
+              <span>Device Telemetry Stream</span>
+            </div>
+            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-200 border border-cyan-400/40">
+              ±{deviceTelemetry.accuracy}m
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono pt-0.5">
+            <div>
+              <span className="text-slate-400">Lat:</span> <strong className="text-white">{deviceTelemetry.lat.toFixed(5)}</strong>
+            </div>
+            <div>
+              <span className="text-slate-400">Lng:</span> <strong className="text-white">{deviceTelemetry.lng.toFixed(5)}</strong>
+            </div>
+            <div>
+              <span className="text-slate-400">Speed:</span> <strong className="text-emerald-300">{deviceTelemetry.speed !== null ? `${deviceTelemetry.speed} km/h` : '0 km/h'}</strong>
+            </div>
+            <div>
+              <span className="text-slate-400">Heading:</span> <strong className="text-sky-300">{deviceTelemetry.heading !== null ? `${deviceTelemetry.heading}°` : 'N/A'}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GPS Error Notification */}
+      {gpsError && (
+        <div className="absolute top-16 left-4 right-4 sm:right-auto z-[1000] bg-rose-950/90 backdrop-blur-md border border-rose-400/50 rounded-2xl p-3 text-xs text-rose-200 shadow-2xl flex items-center justify-between gap-3 animate-fade-in max-w-md">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{gpsError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setGpsError(null)}
+            className="p-1 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Route Legend in Bottom Left (Exactamente una ruta activa mostrada) */}
-      <div className="absolute bottom-4 left-4 z-10 bg-slate-950/85 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-[11px] text-slate-300 space-y-1.5 shadow-lg hidden sm:block">
+      <div className="absolute bottom-4 left-4 z-[1000] bg-slate-950/85 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 text-[11px] text-slate-300 space-y-1.5 shadow-lg hidden sm:block">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>
           <span>Driver in Transit</span>
