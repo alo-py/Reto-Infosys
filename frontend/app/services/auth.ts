@@ -160,6 +160,7 @@ export function saveAuthSession(auth: AuthResponse): void {
   if (access) localStorage.setItem('optigo_auth_token', access);
   if (refresh) localStorage.setItem('optigo_auth_refresh', refresh);
   if (auth.user) localStorage.setItem('optigo_auth_user', JSON.stringify(auth.user));
+  window.dispatchEvent(new Event('optigo_auth_change'));
 }
 
 /**
@@ -168,6 +169,14 @@ export function saveAuthSession(auth: AuthResponse): void {
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('optigo_auth_token');
+}
+
+/**
+ * Check if active session token exists
+ */
+export function isAuthenticated(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!localStorage.getItem('optigo_auth_token');
 }
 
 /**
@@ -192,4 +201,5 @@ export function logoutUser(): void {
   localStorage.removeItem('optigo_auth_token');
   localStorage.removeItem('optigo_auth_refresh');
   localStorage.removeItem('optigo_auth_user');
+  window.dispatchEvent(new Event('optigo_auth_change'));
 }

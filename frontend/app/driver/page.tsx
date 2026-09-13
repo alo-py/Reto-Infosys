@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowLeft, Car } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Car, LogOut, User as UserIcon } from 'lucide-react';
+import { getAuthToken, getStoredUser, logoutUser, UserProfile } from '@/app/services/auth';
 import DriverHeader from '@/app/ui/Components/Driver/DriverHeader';
 import WeatherAlertBanner from '@/app/ui/Components/Driver/WeatherAlertBanner';
 import DriverEarningsCard from '@/app/ui/Components/Driver/DriverEarningsCard';
@@ -398,6 +400,26 @@ function advanceSimulation(
 }
 
 export default function DriverAppPage() {
+  const router = useRouter();
+  const [authChecking, setAuthChecking] = useState<boolean>(true);
+  const [courierUser, setCourierUser] = useState<UserProfile | null>(null);
+
+  // Enforce authentication to access the driver application
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      router.replace('/login?redirect=/driver');
+      return;
+    }
+    setCourierUser(getStoredUser());
+    setAuthChecking(false);
+  }, [router]);
+
+  const handleLogout = () => {
+    logoutUser();
+    router.push('/login');
+  };
+
   // Configurable Scenario & Shift Events
   const [scenario, setScenario] = useState<ShiftScenarioConfig>(DEFAULT_MONTERREY_SCENARIO);
   const scenarioRef = useRef<ShiftScenarioConfig>(scenario);
@@ -790,6 +812,15 @@ export default function DriverAppPage() {
     setActiveTab(tab);
   };
 
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 gap-4">
+        <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-semibold text-emerald-400">Verifying courier authorization...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-5">
       {/* Back to Home Link and Title */}
@@ -802,9 +833,22 @@ export default function DriverAppPage() {
           <span>Back to Home</span>
         </Link>
 
-        <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-slate-950/60 border border-white/15 px-3 py-1.5 rounded-xl backdrop-blur-md">
-          <Car className="w-4 h-4 text-emerald-400" />
-          <span>OptiGo Driver App • Monterrey Dual Sim</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-slate-950/60 border border-white/15 px-3 py-1.5 rounded-xl backdrop-blur-md">
+            <Car className="w-4 h-4 text-emerald-400" />
+            <span>
+              {courierUser ? `${courierUser.nombre} (${courierUser.tipo_vehiculo})` : 'OptiGo Driver'}
+            </span>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            title="Sign Out"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
         </div>
       </div>
 

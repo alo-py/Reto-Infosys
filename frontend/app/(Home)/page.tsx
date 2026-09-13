@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
     Sparkles, 
@@ -11,11 +11,34 @@ import {
     Check, 
     User,
     Clock,
-    Cpu
+    Cpu,
+    Lock,
+    LogOut
 } from 'lucide-react';
+import { getAuthToken, getStoredUser, UserProfile } from '@/app/services/auth';
 
 export default function HomePage() {
     const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
+    const [mounted, setMounted] = useState(false);
+    const [user, setUser] = useState<UserProfile | null>(null);
+    const [hasToken, setHasToken] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        const syncAuth = () => {
+            setHasToken(!!getAuthToken());
+            setUser(getStoredUser());
+        };
+        syncAuth();
+        window.addEventListener('optigo_auth_change', syncAuth);
+        window.addEventListener('storage', syncAuth);
+        return () => {
+            window.removeEventListener('optigo_auth_change', syncAuth);
+            window.removeEventListener('storage', syncAuth);
+        };
+    }, []);
+
+    const isAuth = mounted && hasToken;
 
     // Estimated pricing model:
     // 1. DeepSeek API cost (dual agent: strategist + risk supervisor ~20k tokens/shift * 20 shifts = 400k tokens ~ $18 - $25 MXN/mo)
@@ -123,22 +146,47 @@ export default function HomePage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="relative z-10 pt-8 mt-6 border-t border-white/20 flex flex-col sm:flex-row gap-4">
-                        <Link
-                            href="/driver"
-                            className="flex-1 bg-linear-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-slate-900 font-bold px-6 py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] text-center"
-                        >
-                            <span>Launch Driver App</span>
-                            <ArrowRight className="w-4 h-4 text-slate-900" />
-                        </Link>
+                    <div className="relative z-10 pt-8 mt-6 border-t border-white/20">
+                        {isAuth ? (
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <Link
+                                    href="/driver"
+                                    className="flex-1 bg-linear-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-slate-900 font-bold px-6 py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] text-center"
+                                >
+                                    <span>Enter Driver Cockpit</span>
+                                    <ArrowRight className="w-4 h-4 text-slate-900" />
+                                </Link>
 
-                        <Link
-                            href="/login"
-                            className="flex-1 bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold px-6 py-3.5 rounded-2xl backdrop-blur-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] text-center"
-                        >
-                            <User className="w-4 h-4 text-white" />
-                            <span>Log In</span>
-                        </Link>
+                                <div className="flex-1 bg-white/15 border border-white/30 text-white font-semibold px-6 py-3.5 rounded-2xl backdrop-blur-md flex items-center justify-center gap-2 text-center text-sm">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                    <span>Active Session: {user?.nombre || 'Courier'}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="w-full flex flex-col gap-3">
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <Link
+                                        href="/login?redirect=/driver"
+                                        className="flex-1 bg-linear-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-slate-900 font-bold px-6 py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] text-center"
+                                    >
+                                        <Lock className="w-4 h-4 text-slate-900" />
+                                        <span>Sign In to Launch Cockpit</span>
+                                    </Link>
+
+                                    <Link
+                                        href="/register"
+                                        className="flex-1 bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold px-6 py-3.5 rounded-2xl backdrop-blur-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] text-center"
+                                    >
+                                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                        <span>Register as Courier</span>
+                                    </Link>
+                                </div>
+                                <p className="text-[11px] text-amber-200/90 flex items-center justify-center sm:justify-start gap-1.5 pt-1">
+                                    <Lock className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                                    <span>Authentication required: Only authorized couriers can launch the live simulation engine.</span>
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </section>
 
@@ -229,11 +277,20 @@ export default function HomePage() {
                                 </ul>
 
                                 <Link
-                                    href="/driver"
+                                    href={isAuth ? "/driver" : "/register"}
                                     className="mt-4 w-full bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-xs sm:text-sm py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md"
                                 >
-                                    <span>Select Autonomous Plan</span>
-                                    <ArrowRight className="w-3.5 h-3.5" />
+                                    {isAuth ? (
+                                        <>
+                                            <span>Launch Autonomous Cockpit</span>
+                                            <ArrowRight className="w-3.5 h-3.5" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                            <span>Sign Up for Autonomous</span>
+                                        </>
+                                    )}
                                 </Link>
                             </div>
 
@@ -261,10 +318,14 @@ export default function HomePage() {
                                 </ul>
 
                                 <Link
-                                    href="/driver"
+                                    href={isAuth ? "/driver" : "/register"}
                                     className="mt-3 w-full bg-white/15 hover:bg-white/25 text-white font-medium text-xs py-2 rounded-xl flex items-center justify-center gap-1 transition-all border border-white/20"
                                 >
-                                    <span>Select Starter Plan</span>
+                                    {isAuth ? (
+                                        <span>Launch Starter Cockpit</span>
+                                    ) : (
+                                        <span>Sign Up for Starter</span>
+                                    )}
                                 </Link>
                             </div>
                         </div>
