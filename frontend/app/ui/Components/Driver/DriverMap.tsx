@@ -48,6 +48,7 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   const currentCoordsRef = useRef<LocationCoord>(shiftState.coordenadasActuales);
   const animationFrameRef = useRef<number | null>(null);
   const currentBearingRef = useRef<number>(0);
+  const lastAgentRef = useRef<'OPTIGO_AI' | 'GREEDY'>(shiftState.tipoAgente);
 
   // 1. Inicializar el mapa de Monterrey una sola vez
   useEffect(() => {
@@ -138,13 +139,33 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   useEffect(() => {
     if (!mapInstanceRef.current || !driverMarkerRef.current) return;
 
-    const startCoords = currentCoordsRef.current;
     const targetCoords = shiftState.coordenadasActuales;
+
+    // A) CAMBIO DE PESTAÑA O AGENTE: Teleportación inmediata sin vuelo por toda la ciudad
+    if (lastAgentRef.current !== shiftState.tipoAgente) {
+      lastAgentRef.current = shiftState.tipoAgente;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      currentCoordsRef.current = targetCoords;
+      driverMarkerRef.current.setLatLng([targetCoords.lat, targetCoords.lng]);
+
+      const map = mapInstanceRef.current;
+      map.stop(); // Detener cualquier animación de paneo pendiente de Leaflet
+      map.panTo([targetCoords.lat, targetCoords.lng], { animate: false });
+      return;
+    }
+
+    const startCoords = currentCoordsRef.current;
 
     // Si la distancia es imperceptible, evitar animar
     const distLat = targetCoords.lat - startCoords.lat;
     const distLng = targetCoords.lng - startCoords.lng;
-    if (Math.abs(distLat) < 0.00001 && Math.abs(distLng) < 0.00001) return;
+    if (Math.abs(distLat) < 0.00001 && Math.abs(distLng) < 0.00001) {
+      currentCoordsRef.current = targetCoords;
+      return;
+    }
 
     // Calcular ángulo de dirección hacia el nuevo punto
     const newBearing = calculateBearing(
@@ -161,12 +182,13 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
       rotatorElem.style.transform = `rotate(${newBearing}deg)`;
     }
 
-    // Parámetros de la interpolación fluida (550ms a 60 FPS)
-    const duration = 550;
+    // Parámetros de la interpolación fluida (380ms a 60 FPS, termina antes de la sig. orden)
+    const duration = 380;
     let startTime: number | null = null;
 
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
 
     const animateMovement = (currentTime: number) => {
@@ -178,6 +200,9 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
       const currLat = startCoords.lat + distLat * ease;
       const currLng = startCoords.lng + distLng * ease;
 
+      // Mantener la coordenada actual sincronizada en todo momento (evita saltos al pausar)
+      currentCoordsRef.current = { lat: currLat, lng: currLng };
+
       // Actualizar marcador
       if (driverMarkerRef.current) {
         driverMarkerRef.current.setLatLng([currLat, currLng]);
@@ -186,7 +211,7 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
       if (progress < 1.0) {
         animationFrameRef.current = requestAnimationFrame(animateMovement);
       } else {
-        // Animación terminada en destino
+        // Animación terminada exactamente en destino
         currentCoordsRef.current = targetCoords;
         animationFrameRef.current = null;
 
@@ -194,10 +219,10 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
         if (mapInstanceRef.current) {
           const map = mapInstanceRef.current;
           const bounds = map.getBounds();
-          if (!bounds.pad(-0.2).contains([targetCoords.lat, targetCoords.lng])) {
+          if (!bounds.pad(-0.15).contains([targetCoords.lat, targetCoords.lng])) {
             map.panTo([targetCoords.lat, targetCoords.lng], {
               animate: true,
-              duration: 0.6,
+              duration: 0.25,
             });
           }
         }
@@ -209,9 +234,10 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
-  }, [shiftState.coordenadasActuales]);
+  }, [shiftState.coordenadasActuales, shiftState.tipoAgente]);
 
   // 3. Dibujar ÚNICAMENTE el camino del tramo activo actual (una sola línea visible en el mapa)
   useEffect(() => {

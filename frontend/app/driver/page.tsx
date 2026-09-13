@@ -473,12 +473,12 @@ export default function DriverAppPage() {
   const otherShiftState = activeTab === 'OPTIGO_AI' ? greedyState : optigoState;
   const isCurrentPlaying = activeTab === 'OPTIGO_AI' ? isOptigoPlaying : isGreedyPlaying;
 
-  // Real-time step execution supporting both live Django backend and client engine fallback
-  const stepSimulation = useCallback(async (tipo: 'OPTIGO_AI' | 'GREEDY', mins: number = 1) => {
+  // Real-time step execution supporting deterministic simulation with non-blocking backend telemetry
+  const stepSimulation = useCallback((tipo: 'OPTIGO_AI' | 'GREEDY', mins: number = 1) => {
     const isOptigo = tipo === 'OPTIGO_AI';
     const lockRef = isOptigo ? isOptigoSteppingRef : isGreedySteppingRef;
 
-    // Prevent race conditions and overlapping network requests
+    // Prevent re-entrancy
     if (lockRef.current) return;
     lockRef.current = true;
 
@@ -487,133 +487,32 @@ export default function DriverAppPage() {
     const setIsPlaying = isOptigo ? setIsOptigoPlaying : setIsGreedyPlaying;
 
     try {
-      if (isBackendConnected) {
-        try {
-          // If not started on Django backend yet, create the shift in PostgreSQL/SQLite
-          if (!backendIdRef.current) {
-            const created = await startBackendShift(tipo, 120);
-            backendIdRef.current = created.id;
-          }
-
-        // Advance simulation on Django (runs OR-Tools, OSMnx, Kaggle, PostgreSQL)
-        const stepRes = await stepBackendShift(backendIdRef.current, mins);
-        const progreso = stepRes.progreso;
-        const turno = stepRes.turno;
-        const env = turno.ultimo_estado_entorno;
-
-        setShift((prev) => {
-          if (prev.estadoTurno === 'FINALIZADO') return prev;
-          const isFinished = progreso.estado_turno === 'FINALIZADO' || progreso.minuto_actual >= prev.duracionTotal;
-          if (isFinished) setIsPlaying(false);
-
-          let ubicacionActual = prev.ubicacionActual;
-          if (progreso.ubicacion_actual && MONTERREY_NODES[progreso.ubicacion_actual as ZoneName]) {
-            ubicacionActual = progreso.ubicacion_actual as ZoneName;
-          }
-
-          let logExplicativo = prev.ordenActiva?.logExplicativo || '';
-          if (progreso.decisiones_en_este_paso && progreso.decisiones_en_este_paso.length > 0) {
-            logExplicativo = progreso.decisiones_en_este_paso[progreso.decisiones_en_este_paso.length - 1].log;
-          }
-
-          let ordenActiva = prev.ordenActiva;
-          let coordenadasActuales = MONTERREY_NODES[ubicacionActual] || prev.coordenadasActuales;
-
-          const duracion = Math.max(1, (ordenActiva?.minutoFinViaje || 15) - (ordenActiva?.minutoInicioViaje || 0));
-          const transcurrido = Math.max(0, progreso.minuto_actual - (ordenActiva?.minutoInicioViaje || 0));
-          const ratio = Math.min(1.0, transcurrido / duracion);
-
-          if (ordenActiva) {
-            const streetPath = ordenActiva.streetPath || buildFullStreetSequence(ordenActiva.paradasSecuencia);
-            if (streetPath.length >= 2) {
-              const numSegs = streetPath.length - 1;
-              const scaled = ratio * numSegs;
-              const idxSeg = Math.min(Math.floor(scaled), numSegs - 1);
-              const tSeg = scaled - idxSeg;
-              const pA = streetPath[idxSeg];
-              const pB = streetPath[idxSeg + 1];
-              if (pA && pB) {
-                coordenadasActuales = {
-                  lat: Number((pA[0] + (pB[0] - pA[0]) * tSeg).toFixed(5)),
-                  lng: Number((pA[1] + (pB[1] - pA[1]) * tSeg).toFixed(5)),
-                };
-              }
-            }
-
-            if (progreso.minuto_actual >= ordenActiva.minutoFinViaje) {
-              ordenActiva = null;
-            }
-          }
-
-          if (!ordenActiva && !isFinished) {
-            const plan = getNextOrderPlan(
-              ubicacionActual,
-              tipo === 'OPTIGO_AI',
-              env?.factor_surge || 1.0,
-              env?.avenida_cerrada || null
-            );
-            const streetPath = buildFullStreetSequence(plan.paradasSecuencia);
-            ordenActiva = {
-              tipo: plan.tipo,
-              pedidos: [],
-              origen: plan.origen,
-              destino: plan.destino,
-              paradasSecuencia: plan.paradasSecuencia,
-              minutoInicioViaje: progreso.minuto_actual,
-              minutoFinViaje: progreso.minuto_actual + plan.duracionViaje,
-              tarifaTotal: Number(((plan.tarifaBase * (env?.factor_surge || 1.0)) + plan.propina).toFixed(2)),
-              propinaTotal: plan.propina,
-              logExplicativo: logExplicativo || plan.logExplicativo,
-              hasPickupTransition: plan.hasPickupTransition,
-              transicionDesde: plan.transicionDesde,
-              faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
-              streetPath,
-              estaDesviado: plan.estaDesviado,
-              desvioExplicacion: plan.desvioExplicacion,
-              indiceTramoActual: 0,
-              tramoActualOrigen: plan.paradasSecuencia[0],
-              tramoActualDestino: plan.paradasSecuencia[1],
-            };
-          }
-
-          return {
-            ...prev,
-            minuto: progreso.minuto_actual,
-            estadoTurno: isFinished ? 'FINALIZADO' : 'EN_CURSO',
-            estadoConexion: isFinished ? 'DESCONECTADO' : (ordenActiva?.faseActual === 'TRANSICION_PICKUP' ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY'),
-            gananciaNeta: progreso.ganancia_neta,
-            ingresosBrutos: progreso.ingresos_brutos || parseFloat(turno.ingresos_brutos || '0'),
-            gastoGasolina: progreso.gasto_gasolina || parseFloat(turno.gasto_gasolina_total || '0'),
-            pedidosCompletados: progreso.pedidos_completados,
-            batchesRealizados: progreso.batches_realizados ?? turno.batches_realizados,
-            pedidosConRetraso: progreso.pedidos_con_retraso ?? turno.pedidos_con_retraso,
-            penalizacionesSla: progreso.penalizaciones_sla ?? parseFloat(turno.penalizaciones_sla_total || '0'),
-            kmTotales: progreso.km_totales ?? parseFloat(turno.km_totales || '0'),
-            kmVacio: progreso.km_en_vacio ?? parseFloat(turno.km_en_vacio || '0'),
-            clima: env?.clima || prev.clima,
-            temperatura: env?.temperatura_c ?? prev.temperatura,
-            factorTrafico: env?.factor_trafico ?? prev.factorTrafico,
-            factorSurge: env?.factor_surge ?? prev.factorSurge,
-            avenidaCerrada: env?.avenida_cerrada ?? null,
-            zonasAfectadas: env?.zonas_afectadas ?? [],
-            ubicacionActual,
-            coordenadasActuales,
-            ordenActiva,
-          };
-        });
-
-        return;
-      } catch (err) {
-        console.warn("Django backend call failed, using client engine fallback:", err);
-      }
-    }
-
-      // Fallback: Client simulation engine
+      // 1. Advance simulation deterministically & synchronously on client (0ms delay, smooth 60fps)
       setShift((prev) => {
+        if (prev.estadoTurno === 'FINALIZADO') return prev;
         const next = advanceSimulation(prev, scenarioRef.current, mins);
-        if (next.estadoTurno === 'FINALIZADO') setIsPlaying(false);
+        if (next.estadoTurno === 'FINALIZADO') {
+          setIsPlaying(false);
+        }
         return next;
       });
+
+      // 2. Synchronize telemetry with Django backend in background if connected (non-blocking)
+      if (isBackendConnected) {
+        (async () => {
+          try {
+            if (!backendIdRef.current) {
+              const created = await startBackendShift(tipo, 120);
+              backendIdRef.current = created.id;
+            }
+            if (backendIdRef.current) {
+              await stepBackendShift(backendIdRef.current, mins);
+            }
+          } catch (e) {
+            console.warn("Backend step telemetry sync failed:", e);
+          }
+        })();
+      }
     } finally {
       lockRef.current = false;
     }
@@ -734,10 +633,24 @@ export default function DriverAppPage() {
   const handleTogglePlay = () => {
     if (activeTab === 'OPTIGO_AI') {
       if (optigoState.estadoTurno === 'FINALIZADO') return;
-      setIsOptigoPlaying((prev) => !prev);
+      setIsOptigoPlaying((prev) => {
+        const next = !prev;
+        if (next) {
+          // Immediately step 1 min for instant UI feedback without waiting 700ms
+          setTimeout(() => stepSimulation('OPTIGO_AI', 1), 0);
+        }
+        return next;
+      });
     } else {
       if (greedyState.estadoTurno === 'FINALIZADO') return;
-      setIsGreedyPlaying((prev) => !prev);
+      setIsGreedyPlaying((prev) => {
+        const next = !prev;
+        if (next) {
+          // Immediately step 1 min for instant UI feedback without waiting 700ms
+          setTimeout(() => stepSimulation('GREEDY', 1), 0);
+        }
+        return next;
+      });
     }
   };
 
@@ -748,11 +661,21 @@ export default function DriverAppPage() {
   const handleResetShift = () => {
     if (activeTab === 'OPTIGO_AI') {
       setIsOptigoPlaying(false);
+      if (optigoTimerRef.current) {
+        clearInterval(optigoTimerRef.current);
+        optigoTimerRef.current = null;
+      }
+      isOptigoSteppingRef.current = false;
       hasShownOptigoSummary.current = false;
       optigoBackendIdRef.current = null;
       setOptigoState(createInitialState('OPTIGO_AI', scenarioRef.current));
     } else {
       setIsGreedyPlaying(false);
+      if (greedyTimerRef.current) {
+        clearInterval(greedyTimerRef.current);
+        greedyTimerRef.current = null;
+      }
+      isGreedySteppingRef.current = false;
       hasShownGreedySummary.current = false;
       greedyBackendIdRef.current = null;
       setGreedyState(createInitialState('GREEDY', scenarioRef.current));
