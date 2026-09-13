@@ -360,13 +360,47 @@ export default function ActiveOrderCard({
                 </div>
               </div>
 
+              {/* Interactive Co-Pilot Activation Callout */}
+              {directives.autonomyMode === 'AUTONOMOUS' ? (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-2xl bg-linear-to-r from-purple-500/20 to-indigo-500/10 border border-purple-400/40 text-xs shadow-sm">
+                  <div className="flex items-center gap-2 text-purple-200">
+                    <UserCheck className="w-4 h-4 text-purple-300 shrink-0" />
+                    <span>Want manual control to accept or reject incoming orders?</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleAutonomy}
+                    className="px-3 py-1.5 bg-linear-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-purple-950/40 shrink-0 flex items-center gap-1.5"
+                  >
+                    <span>Activate Co-Pilot Mode</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-2xl bg-purple-500/20 border border-purple-400/50 text-xs text-purple-100 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-ping shrink-0" />
+                    <span>
+                      <strong className="text-purple-200">Co-Pilot Mode Active:</strong> Simulation will pause upon next order ping for your manual approval.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleAutonomy}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 border border-white/20 text-slate-200 font-semibold rounded-xl text-[11px] transition-all shrink-0"
+                  >
+                    Switch to Auto-Pilot
+                  </button>
+                </div>
+              )}
+
               <div className="bg-slate-950/40 border border-white/10 rounded-2xl p-3 text-xs space-y-1 text-slate-300 font-sans">
                 <div className="flex items-center gap-1.5 text-slate-200 font-semibold">
                   <Info className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Active Dispatch Directives:</span>
                 </div>
                 <div className="text-[11px] text-slate-300">
-                  • Mode: <strong>{directives.autonomyMode}</strong> • Batches: <strong>{directives.allowBatches ? 'Enabled' : 'Disabled'}</strong> • Max Deadhead: <strong>{directives.maxDeadheadKm} km</strong>
+                  • Mode: <strong className={directives.autonomyMode === 'COPILOT' ? 'text-purple-300' : 'text-emerald-300'}>{directives.autonomyMode}</strong> • Batches: <strong>{directives.allowBatches ? 'Enabled' : 'Disabled'}</strong> • Max Deadhead: <strong>{directives.maxDeadheadKm} km</strong>
                 </div>
               </div>
             </div>

@@ -889,6 +889,23 @@ export default function DriverAppPage() {
     }));
   };
 
+  const handleToggleAutonomyMode = () => {
+    const isOptigo = activeTab === 'OPTIGO_AI';
+    const setShift = isOptigo ? setOptigoState : setGreedyState;
+
+    setShift((prev) => {
+      const currentMode = prev.directives?.autonomyMode || 'AUTONOMOUS';
+      const nextMode = currentMode === 'AUTONOMOUS' ? 'COPILOT' : 'AUTONOMOUS';
+      return {
+        ...prev,
+        directives: {
+          ...prev.directives,
+          autonomyMode: nextMode,
+        },
+      };
+    });
+  };
+
   if (authChecking) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 gap-4">
@@ -921,6 +938,7 @@ export default function DriverAppPage() {
         onOpenComparison={() => setIsSummaryOpen(true)}
         currentScenario={scenario}
         onOpenScenarioModal={() => setIsScenarioModalOpen(true)}
+        onToggleAutonomyMode={handleToggleAutonomyMode}
         isBackendConnected={isBackendConnected}
         backendShiftId={activeTab === 'OPTIGO_AI' ? optigoBackendIdRef.current : greedyBackendIdRef.current}
       />

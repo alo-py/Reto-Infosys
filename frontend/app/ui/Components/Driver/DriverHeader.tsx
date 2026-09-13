@@ -7,6 +7,7 @@ import {
   FastForward, 
   Bot, 
   User, 
+  UserCheck,
   Clock, 
   Flag,
   Sliders 
@@ -30,6 +31,7 @@ interface DriverHeaderProps {
   onOpenComparison?: () => void;
   currentScenario?: ShiftScenarioConfig;
   onOpenScenarioModal?: () => void;
+  onToggleAutonomyMode?: () => void;
   isBackendConnected?: boolean;
   backendShiftId?: string | null;
 }
@@ -50,6 +52,7 @@ export default function DriverHeader({
   onOpenComparison,
   currentScenario,
   onOpenScenarioModal,
+  onToggleAutonomyMode,
   isBackendConnected,
   backendShiftId,
 }: DriverHeaderProps) {
@@ -171,6 +174,38 @@ export default function DriverHeader({
           >
             <Sliders className="w-3.5 h-3.5 text-emerald-300" />
             <span>Scenario: {currentScenario ? currentScenario.name.split(' ')[0] : 'Monterrey'}</span>
+          </button>
+        )}
+
+        {/* Autonomy Mode Switcher: 100% Auto-Pilot vs Co-Pilot (Manual Decision) */}
+        {onToggleAutonomyMode && (
+          <button
+            type="button"
+            onClick={onToggleAutonomyMode}
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border shadow-sm ${
+              shiftState.directives?.autonomyMode === 'COPILOT'
+                ? 'bg-linear-to-r from-purple-500 to-indigo-500 text-white border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.4)] scale-[1.02]'
+                : 'bg-slate-950/60 text-slate-300 border-white/20 hover:text-white hover:border-white/40'
+            }`}
+            title="Click to toggle between 100% Autonomous Auto-Pilot and Interactive Co-Pilot"
+          >
+            {shiftState.directives?.autonomyMode === 'COPILOT' ? (
+              <>
+                <UserCheck className="w-3.5 h-3.5 text-purple-200" />
+                <span>Mode: 🤝 Co-Pilot</span>
+                <span className="text-[9px] bg-purple-950 text-purple-200 px-1 py-0.5 rounded font-mono border border-purple-400/40">
+                  Manual
+                </span>
+              </>
+            ) : (
+              <>
+                <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Mode: ⚡ Auto-Pilot</span>
+                <span className="text-[9px] bg-emerald-950 text-emerald-300 px-1 py-0.5 rounded font-mono border border-emerald-400/40">
+                  Auto
+                </span>
+              </>
+            )}
           </button>
         )}
       </div>
