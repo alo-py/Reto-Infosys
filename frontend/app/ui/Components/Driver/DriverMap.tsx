@@ -67,10 +67,16 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
     // Añadir control de zoom en esquina superior derecha
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Tiles estilo DiDi/Uber Dark Matter (limpio, elegante y moderno)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Tiles estilo oscuro profesional (Esri World Dark Gray Canvas + Reference) sin requerimiento de API Key
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18,
-      subdomains: 'abcd',
+      maxNativeZoom: 16,
+      attribution: 'Tiles &copy; Esri',
+    }).addTo(map);
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 18,
+      maxNativeZoom: 16,
     }).addTo(map);
 
     // Dibujar los 9 nodos clave de Monterrey como estaciones fijas
