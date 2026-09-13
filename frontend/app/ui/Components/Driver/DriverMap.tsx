@@ -228,9 +228,13 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
     }
 
     if (shiftState.ordenActiva && shiftState.ordenActiva.paradasSecuencia.length >= 2) {
-      const paradas = shiftState.ordenActiva.paradasSecuencia;
+      const orden = shiftState.ordenActiva;
+      const paradas = orden.paradasSecuencia;
 
-      if (shiftState.ordenActiva.hasPickupTransition && paradas.length >= 3) {
+      // Desaparecer inmediatamente la línea de transición si llegamos al punto A (faseActual === 'ENTREGA')
+      const isStillInTransition = orden.hasPickupTransition && orden.faseActual === 'TRANSICION_PICKUP' && paradas.length >= 3;
+
+      if (isStillInTransition) {
         // Tramo 1: Transición hacia el restaurante de recolección (Sky Blue)
         const transitionPath = getStreetPath(paradas[0], paradas[1]);
         if (transitionPath.length >= 2) {
@@ -257,21 +261,31 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
           routePolylineRef.current = deliveryLine;
         }
       } else {
-        // Ruta directa de entrega (Neon Emerald)
-        const fullStreetPath = shiftState.ordenActiva.streetPath || buildFullStreetSequence(paradas);
+        // Fase de ENTREGA o ruta directa: LA LÍNEA DE TRANSICIÓN DESAPARECE DE INMEDIATO
+        // Solo dibujamos la ruta de entrega hacia el cliente final
+        const deliveryStops = (orden.hasPickupTransition && paradas.length >= 3)
+          ? paradas.slice(1)
+          : paradas;
+
+        const fullStreetPath = orden.streetPath || buildFullStreetSequence(deliveryStops);
         if (fullStreetPath.length >= 2) {
           const polyline = L.polyline(fullStreetPath, {
-            color: '#10b981',
+            color: orden.estaDesviado ? '#fbbf24' : '#10b981',
             weight: 5,
             opacity: 0.95,
-            dashArray: '8, 8',
+            dashArray: orden.estaDesviado ? '6, 4' : '8, 8',
             lineJoin: 'round',
           }).addTo(mapInstanceRef.current);
           routePolylineRef.current = polyline;
         }
       }
     }
-  }, [shiftState.ordenActiva]);
+  }, [
+    shiftState.ordenActiva,
+    shiftState.ordenActiva?.faseActual,
+    shiftState.ordenActiva?.estaDesviado,
+    shiftState.ordenActiva?.streetPath
+  ]);
 
   // 4. Dibujar incidentes viales (Avenidas cerradas en rojo)
   useEffect(() => {
@@ -314,16 +328,23 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>
           <span>Driver in Transit</span>
         </div>
-        {shiftState.ordenActiva?.hasPickupTransition && (
-          <div className="flex items-center gap-2 text-sky-300 font-medium">
+        {shiftState.ordenActiva?.hasPickupTransition && shiftState.ordenActiva.faseActual === 'TRANSICION_PICKUP' && (
+          <div className="flex items-center gap-2 text-sky-300 font-medium animate-pulse">
             <span className="w-4 h-1 border-t-2 border-sky-400 border-dashed"></span>
             <span>Pickup Transition (To Restaurant)</span>
           </div>
         )}
-        <div className="flex items-center gap-2 text-emerald-300 font-medium">
-          <span className="w-4 h-1 border-t-2 border-emerald-400 border-dashed"></span>
-          <span>Delivery Route (To Customer)</span>
-        </div>
+        {shiftState.ordenActiva?.estaDesviado ? (
+          <div className="flex items-center gap-2 text-amber-300 font-medium">
+            <span className="w-4 h-1 border-t-2 border-amber-400 border-dashed"></span>
+            <span>Dynamic Detour Active (OptiGo AI)</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-emerald-300 font-medium">
+            <span className="w-4 h-1 border-t-2 border-emerald-400 border-dashed"></span>
+            <span>Delivery Route (To Customer)</span>
+          </div>
+        )}
         {shiftState.avenidaCerrada && (
           <div className="flex items-center gap-2 text-rose-300 font-medium">
             <span className="w-4 h-1 border-t-2 border-rose-500 border-dashed"></span>

@@ -80,6 +80,8 @@ export interface ActiveShiftState {
     transicionDesde?: ZoneName;
     faseActual?: 'TRANSICION_PICKUP' | 'ENTREGA';
     streetPath?: [number, number][];
+    estaDesviado?: boolean;
+    desvioExplicacion?: string;
   } | null;
 }
 

@@ -165,6 +165,114 @@ export interface OrderPlanResult {
   hasPickupTransition: boolean;
   transicionDesde?: ZoneName;
   logExplicativo: string;
+  estaDesviado?: boolean;
+  desvioExplicacion?: string;
+}
+
+/**
+ * Checks if a route sequence crosses a blocked avenue.
+ */
+export function routeIntersectsBlockage(
+  stops: (ZoneName | string)[],
+  avenidaCerrada: string | null
+): boolean {
+  if (!avenidaCerrada || stops.length < 2) return false;
+
+  const isGonzalitos = avenidaCerrada === "Av. Gonzalitos";
+  const isConstitucion = avenidaCerrada === "Av. Constitución";
+  const isMorones = avenidaCerrada === "Av. Morones Prieto";
+  const isDiazOrdaz = avenidaCerrada === "Blvd. Díaz Ordaz";
+
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i];
+    const b = stops[i + 1];
+
+    if (isGonzalitos) {
+      // Gonzalitos is the primary link connecting San Nicolás/Cumbres with San Pedro/San Jerónimo
+      const isNorth = a === "San Nicolás" || a === "Cumbres" || b === "San Nicolás" || b === "Cumbres";
+      const isSouth = a === "Centrito Valle (San Pedro)" || a === "Valle Oriente (San Pedro)" || a === "San Jerónimo" ||
+                      b === "Centrito Valle (San Pedro)" || b === "Valle Oriente (San Pedro)" || b === "San Jerónimo";
+      if (isNorth && isSouth) return true;
+    }
+
+    if (isConstitucion) {
+      if ((a === "Centro MTY (Barrio Antiguo)" && b === "San Jerónimo") || (a === "San Jerónimo" && b === "Centro MTY (Barrio Antiguo)")) return true;
+      if ((a === "Centro MTY (Barrio Antiguo)" && b === "Santa Catarina") || (a === "Santa Catarina" && b === "Centro MTY (Barrio Antiguo)")) return true;
+    }
+
+    if (isMorones) {
+      if ((a === "Centrito Valle (San Pedro)" && b === "Tec de Monterrey (Garza Sada)") || (a === "Tec de Monterrey (Garza Sada)" && b === "Centrito Valle (San Pedro)")) return true;
+      if ((a === "San Jerónimo" && b === "Centrito Valle (San Pedro)") || (a === "Centrito Valle (San Pedro)" && b === "San Jerónimo")) return true;
+    }
+
+    if (isDiazOrdaz) {
+      if ((a === "Santa Catarina" && b === "San Jerónimo") || (a === "San Jerónimo" && b === "Santa Catarina")) return true;
+      if ((a === "Santa Catarina" && b === "Centro MTY (Barrio Antiguo)") || (a === "Centro MTY (Barrio Antiguo)" && b === "Santa Catarina")) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculates a safe detour sequence around a blocked avenue.
+ */
+export function calculateDetourRoute(
+  stops: (ZoneName | string)[],
+  avenidaCerrada: string
+): {
+  detourStops: ZoneName[];
+  bypassDescription: string;
+} {
+  const origin = stops[0] as ZoneName;
+  const finalDest = stops[stops.length - 1] as ZoneName;
+
+  if (avenidaCerrada === "Av. Gonzalitos") {
+    // Bypass Gonzalitos using Centro MTY (Barrio Antiguo) and Morones Prieto/Loma Larga tunnel
+    const bypass: ZoneName = "Centro MTY (Barrio Antiguo)";
+    const detourStops: ZoneName[] = origin === bypass
+      ? [origin, finalDest]
+      : [origin, bypass, finalDest];
+
+    return {
+      detourStops,
+      bypassDescription: "Detour via Centro MTY (Barrio Antiguo) & Loma Larga bypass (bypassing Av. Gonzalitos)",
+    };
+  }
+
+  if (avenidaCerrada === "Av. Constitución") {
+    const bypass: ZoneName = "Valle Oriente (San Pedro)";
+    const detourStops: ZoneName[] = origin === bypass
+      ? [origin, finalDest]
+      : [origin, bypass, finalDest];
+
+    return {
+      detourStops,
+      bypassDescription: "Detour via Valle Oriente / Lázaro Cárdenas bypass (bypassing Av. Constitución)",
+    };
+  }
+
+  if (avenidaCerrada === "Blvd. Díaz Ordaz") {
+    const bypass: ZoneName = "Centrito Valle (San Pedro)";
+    const detourStops: ZoneName[] = origin === bypass
+      ? [origin, finalDest]
+      : [origin, bypass, finalDest];
+
+    return {
+      detourStops,
+      bypassDescription: "Detour via Vasconcelos & San Pedro bypass (bypassing Blvd. Díaz Ordaz)",
+    };
+  }
+
+  const fallbackBypass: ZoneName = "Centro MTY (Barrio Antiguo)";
+  const detourStops: ZoneName[] = origin === fallbackBypass
+    ? [origin, finalDest]
+    : [origin, fallbackBypass, finalDest];
+
+  return {
+    detourStops,
+    bypassDescription: `Detour avoiding ${avenidaCerrada}`,
+  };
 }
 
 /**
@@ -195,6 +303,8 @@ export function getNextOrderPlan(
   let tarifaBase: number;
   let propina: number;
   let log = "";
+  let estaDesviado = false;
+  let desvioExplicacion: string | undefined = undefined;
 
   if (isBatch) {
     const batchPair = pickupCorridor.batches[Math.floor(Math.random() * pickupCorridor.batches.length)];
@@ -236,8 +346,20 @@ export function getNextOrderPlan(
     }
   }
 
-  if (isOptiGo && avenidaCerrada) {
-    log = `🛡️ [SUPERVISOR VETO]: Direct route avoids blocked ${avenidaCerrada}. Safe alternative corridor towards ${destino} approved (+61% profitability).`;
+  // Si hay una vía cerrada y es OptiGo AI, verificar si la ruta planificada la cruza y aplicar desvío seguro
+  if (avenidaCerrada && isOptiGo) {
+    if (routeIntersectsBlockage(paradasSecuencia, avenidaCerrada)) {
+      const detour = calculateDetourRoute(paradasSecuencia, avenidaCerrada);
+      paradasSecuencia = detour.detourStops;
+      duracionViaje += 4;
+      estaDesviado = true;
+      desvioExplicacion = detour.bypassDescription;
+      log = `🛡️ [SUPERVISOR VETO & DETOUR]: Direct path intersects blocked ${avenidaCerrada}. Safe alternative calculated: ${detour.bypassDescription} (+61% profitability, 0 min penalty).`;
+    }
+  } else if (avenidaCerrada && !isOptiGo) {
+    if (routeIntersectsBlockage(paradasSecuencia, avenidaCerrada)) {
+      log = `⚠️ [GREEDY BLIND DISPATCH]: Baseline took direct order crossing blocked ${avenidaCerrada} without rerouting. Severe gridlock delay expected.`;
+    }
   }
 
   return {
@@ -251,5 +373,7 @@ export function getNextOrderPlan(
     hasPickupTransition: needTransition,
     transicionDesde: needTransition ? currentLocation : undefined,
     logExplicativo: log,
+    estaDesviado,
+    desvioExplicacion,
   };
 }

@@ -69,6 +69,13 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
               <span>Delivering to Customer</span>
             </div>
           )}
+
+          {orden.estaDesviado && (
+            <div className="px-2 py-0.5 rounded-full bg-amber-500/25 border border-amber-400/40 text-amber-200 text-[10px] font-semibold flex items-center gap-1 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              <span>Detour Active</span>
+            </div>
+          )}
         </div>
 
         {/* Fare & Tips */}

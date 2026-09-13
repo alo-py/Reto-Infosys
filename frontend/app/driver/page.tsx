@@ -14,7 +14,12 @@ import {
   MONTERREY_NODES, 
   ZoneName 
 } from '@/app/ui/Components/Driver/types';
-import { buildFullStreetSequence, getNextOrderPlan } from '@/app/ui/Components/Driver/streetRouting';
+import { 
+  buildFullStreetSequence, 
+  getNextOrderPlan, 
+  routeIntersectsBlockage, 
+  calculateDetourRoute 
+} from '@/app/ui/Components/Driver/streetRouting';
 
 // Carga dinámica de Leaflet con SSR desactivado para evitar errores de window
 const DriverMap = dynamic(
@@ -167,6 +172,38 @@ export default function DriverAppPage() {
 
         ordenActiva = null;
       } else if (ordenActiva && nuevoMinuto < ordenActiva.minutoFinViaje) {
+        // 🛡️ Detección de incidente vial y cálculo de desvío dinámico en pleno trayecto
+        if (avenidaCerrada && !ordenActiva.estaDesviado) {
+          const crossesBlock = routeIntersectsBlockage(ordenActiva.paradasSecuencia, avenidaCerrada);
+          if (crossesBlock) {
+            if (prev.tipoAgente === 'OPTIGO_AI') {
+              // OptiGo AI: Supervisor recalcula la ruta en tiempo real hacia una vía alterna
+              const detour = calculateDetourRoute([ubicacionActual, ordenActiva.destino], avenidaCerrada);
+              const detourPath = buildFullStreetSequence(detour.detourStops);
+              if (detourPath.length >= 2) {
+                ordenActiva = {
+                  ...ordenActiva,
+                  paradasSecuencia: detour.detourStops,
+                  streetPath: detourPath,
+                  minutoInicioViaje: nuevoMinuto,
+                  minutoFinViaje: nuevoMinuto + 14,
+                  estaDesviado: true,
+                  desvioExplicacion: detour.bypassDescription,
+                  hasPickupTransition: false,
+                  faseActual: 'ENTREGA',
+                  logExplicativo: `🛡️ [SUPERVISOR DYNAMIC REROUTE]: Road closure detected on ${avenidaCerrada}! Real-time detour activated: ${detour.bypassDescription}. Avoiding +25 min delay!`,
+                };
+              }
+            } else {
+              // Greedy baseline: ignora el bloqueo olímpicamente
+              ordenActiva = {
+                ...ordenActiva,
+                logExplicativo: `⚠️ [GREEDY BLIND PATH]: Driver proceeding directly into blocked ${avenidaCerrada} without detour! Experiencing severe gridlock delay and SLA penalties.`,
+              };
+            }
+          }
+        }
+
         // Desplazamiento dinámico continuo a lo largo de las calles reales de Monterrey
         const duracion = Math.max(1, ordenActiva.minutoFinViaje - ordenActiva.minutoInicioViaje);
         const transcurrido = Math.max(0, nuevoMinuto - ordenActiva.minutoInicioViaje);
@@ -232,6 +269,8 @@ export default function DriverAppPage() {
           transicionDesde: plan.transicionDesde,
           faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
           streetPath,
+          estaDesviado: plan.estaDesviado,
+          desvioExplicacion: plan.desvioExplicacion,
         };
 
         // ZERO TELEPORTATION: Driver starts exactly at ubicacionActual.
