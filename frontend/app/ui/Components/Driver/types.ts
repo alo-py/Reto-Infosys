@@ -70,6 +70,7 @@ export interface ActiveShiftState {
     origen: ZoneName;
     destino: ZoneName;
     paradasSecuencia: ZoneName[];
+    minutoInicioViaje: number;
     minutoFinViaje: number;
     tarifaTotal: number;
     propinaTotal: number;

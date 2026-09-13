@@ -165,6 +165,29 @@ export default function DriverAppPage() {
         kmTotales += kmViaje;
 
         ordenActiva = null;
+      } else if (ordenActiva && nuevoMinuto < ordenActiva.minutoFinViaje) {
+        // Desplazamiento dinámico continuo a lo largo de la ruta trazada en Monterrey
+        const duracion = Math.max(1, ordenActiva.minutoFinViaje - ordenActiva.minutoInicioViaje);
+        const transcurrido = Math.max(0, nuevoMinuto - ordenActiva.minutoInicioViaje);
+        const ratio = Math.min(1.0, transcurrido / duracion);
+
+        const paradas = ordenActiva.paradasSecuencia;
+        if (paradas.length >= 2) {
+          const numSegmentos = paradas.length - 1;
+          const posEscalada = ratio * numSegmentos;
+          const idxSeg = Math.min(Math.floor(posEscalada), numSegmentos - 1);
+          const tSeg = posEscalada - idxSeg;
+
+          const pA = MONTERREY_NODES[paradas[idxSeg]];
+          const pB = MONTERREY_NODES[paradas[idxSeg + 1]];
+          if (pA && pB) {
+            coordenadasActuales = {
+              lat: Number((pA.lat + (pB.lat - pA.lat) * tSeg).toFixed(5)),
+              lng: Number((pA.lng + (pB.lng - pA.lng) * tSeg).toFixed(5)),
+            };
+            ubicacionActual = paradas[idxSeg];
+          }
+        }
       }
 
       // Si el conductor está libre y no ha terminado el turno, asignar nueva orden
@@ -175,7 +198,7 @@ export default function DriverAppPage() {
         const destino = ZONAS_MONTERREY[destIdx];
 
         const isBatch = prev.tipoAgente === 'OPTIGO_AI' && Math.random() > 0.45;
-        const duracionViaje = isBatch ? 28 : 19;
+        const duracionViaje = isBatch ? 26 : 18;
         const tarifaBase = isBatch ? 74.0 : 42.0;
         const propina = isBatch ? 25.0 : 15.0;
         const tarifaTotal = Number(((tarifaBase * surge) + propina).toFixed(2));
@@ -199,13 +222,14 @@ export default function DriverAppPage() {
           origen,
           destino,
           paradasSecuencia: isBatch ? [origen, "Centro MTY (Barrio Antiguo)", destino] : [origen, destino],
+          minutoInicioViaje: nuevoMinuto,
           minutoFinViaje: nuevoMinuto + duracionViaje,
           tarifaTotal,
           propinaTotal: propina,
           logExplicativo: log,
         };
 
-        // Mover posición hacia el restaurante
+        // Mover posición hacia el restaurante de pickup
         ubicacionActual = origen;
         coordenadasActuales = MONTERREY_NODES[origen] || coordenadasActuales;
         estadoConexion = 'EN_CAMINO_DELIVERY';
@@ -238,12 +262,12 @@ export default function DriverAppPage() {
     });
   }, []);
 
-  // Intervalo de auto-reproducción (1 tick = 1 segundo avanza 3 minutos de turno)
+  // Intervalo de auto-reproducción (1 tick = 600ms avanza 1 minuto con animación continua)
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
-        stepSimulation(3);
-      }, 1000);
+        stepSimulation(1);
+      }, 600);
     } else if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
