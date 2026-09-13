@@ -1,0 +1,344 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { ArrowLeft, Car } from 'lucide-react';
+import DriverHeader from '@/app/ui/Components/Driver/DriverHeader';
+import WeatherAlertBanner from '@/app/ui/Components/Driver/WeatherAlertBanner';
+import DriverEarningsCard from '@/app/ui/Components/Driver/DriverEarningsCard';
+import ActiveOrderCard from '@/app/ui/Components/Driver/ActiveOrderCard';
+import ShiftSummaryModal from '@/app/ui/Components/Driver/ShiftSummaryModal';
+import { 
+  ActiveShiftState, 
+  MONTERREY_NODES, 
+  ZoneName 
+} from '@/app/ui/Components/Driver/types';
+
+// Carga dinámica de Leaflet con SSR desactivado para evitar errores de window
+const DriverMap = dynamic(
+  () => import('@/app/ui/Components/Driver/DriverMap'),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[540px] rounded-3xl bg-slate-950/80 border border-white/20 flex flex-col items-center justify-center text-slate-300 gap-3">
+        <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-xs font-mono text-emerald-300">Cargando mapa vial de Monterrey...</p>
+      </div>
+    )
+  }
+);
+
+const ZONAS_MONTERREY: ZoneName[] = [
+  "Tec de Monterrey (Garza Sada)",
+  "Centro MTY (Barrio Antiguo)",
+  "Centrito Valle (San Pedro)",
+  "Valle Oriente (San Pedro)",
+  "San Jerónimo",
+  "Cumbres",
+  "San Nicolás",
+  "Apodaca (Industrial)",
+  "Santa Catarina",
+];
+
+const ESTADO_INICIAL: ActiveShiftState = {
+  minuto: 0,
+  duracionTotal: 120,
+  estadoTurno: 'EN_CURSO',
+  estadoConexion: 'DISPONIBLE',
+  tipoAgente: 'OPTIGO_AI',
+  ubicacionActual: "Centro MTY (Barrio Antiguo)",
+  coordenadasActuales: MONTERREY_NODES["Centro MTY (Barrio Antiguo)"],
+
+  gananciaNeta: 0.0,
+  ingresosBrutos: 0.0,
+  gastoGasolina: 0.0,
+  penalizacionesSla: 0.0,
+  pedidosCompletados: 0,
+  batchesRealizados: 0,
+  pedidosConRetraso: 0,
+  kmTotales: 0.0,
+  kmVacio: 0.0,
+
+  clima: "☀️ CALOR_EXTREMO (39°C)",
+  temperatura: 39,
+  factorTrafico: 1.10,
+  factorSurge: 1.0,
+  avenidaCerrada: null,
+  zonasAfectadas: [],
+
+  ordenActiva: null,
+};
+
+export default function DriverAppPage() {
+  const [shiftState, setShiftState] = useState<ActiveShiftState>(ESTADO_INICIAL);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Función para avanzar la simulación en N minutos
+  const stepSimulation = useCallback((minutosAvance: number = 1) => {
+    setShiftState((prev) => {
+      if (prev.estadoTurno === 'FINALIZADO') return prev;
+
+      const nuevoMinuto = Math.min(prev.minuto + minutosAvance, prev.duracionTotal);
+      const isFinished = nuevoMinuto >= prev.duracionTotal;
+
+      // Eventos meteorológicos dinámicos simulados
+      let clima = prev.clima;
+      let temp = prev.temperatura;
+      let trafico = 1.15;
+      let surge = 1.0;
+      let avenidaCerrada = prev.avenidaCerrada;
+      let zonasAfectadas = prev.zonasAfectadas;
+
+      if (nuevoMinuto >= 35 && nuevoMinuto <= 75) {
+        clima = "🌧️ TORMENTA_SEVERA (Encharcamientos)";
+        temp = 26;
+        trafico = 1.65;
+        surge = 1.55;
+      } else if (nuevoMinuto > 75) {
+        clima = "🌦️ LLUVIA_LIGERA";
+        temp = 29;
+        trafico = 1.25;
+        surge = 1.20;
+      } else {
+        clima = "☀️ CALOR_EXTREMO (40°C)";
+        temp = 40;
+        trafico = nuevoMinuto >= 40 ? 1.25 : 1.10;
+        surge = 1.0;
+      }
+
+      // Incidente vial en Gonzalitos o Constitución durante la tormenta
+      if (nuevoMinuto >= 45 && nuevoMinuto <= 80) {
+        avenidaCerrada = "Av. Gonzalitos";
+        zonasAfectadas = ["San Nicolás", "Valle Oriente (San Pedro)", "Centrito Valle (San Pedro)"];
+      } else {
+        avenidaCerrada = null;
+        zonasAfectadas = [];
+      }
+
+      let ordenActiva = prev.ordenActiva;
+      let gananciaNeta = prev.gananciaNeta;
+      let ingresosBrutos = prev.ingresosBrutos;
+      let gastoGasolina = prev.gastoGasolina;
+      let penalizacionesSla = prev.penalizacionesSla;
+      let pedidosCompletados = prev.pedidosCompletados;
+      let batchesRealizados = prev.batchesRealizados;
+      let pedidosConRetraso = prev.pedidosConRetraso;
+      let kmTotales = prev.kmTotales;
+      let kmVacio = prev.kmVacio;
+      let ubicacionActual = prev.ubicacionActual;
+      let coordenadasActuales = prev.coordenadasActuales;
+      let estadoConexion = prev.estadoConexion;
+
+      // Verificar si la orden activa se completa
+      if (ordenActiva && nuevoMinuto >= ordenActiva.minutoFinViaje) {
+        // Viaje finalizado con éxito
+        ubicacionActual = ordenActiva.destino;
+        coordenadasActuales = MONTERREY_NODES[ubicacionActual] || coordenadasActuales;
+        estadoConexion = 'DISPONIBLE';
+
+        const pedidosEnViaje = ordenActiva.tipo === 'BATCH' ? 2 : 1;
+        pedidosCompletados += pedidosEnViaje;
+        if (ordenActiva.tipo === 'BATCH') {
+          batchesRealizados += 1;
+        }
+
+        const tarifaGarantizada = ordenActiva.tarifaTotal;
+        const kmViaje = ordenActiva.tipo === 'BATCH' ? 14.5 : 8.2;
+        const costoGas = Number((kmViaje * 0.90).toFixed(2));
+
+        // Si es agente Greedy y cruzó en avenida cerrada sin desvío, penalizar
+        let multa = 0;
+        if (prev.tipoAgente === 'GREEDY' && avenidaCerrada) {
+          multa = 22.50;
+          pedidosConRetraso += 1;
+          penalizacionesSla += multa;
+        }
+
+        const neto = Number((tarifaGarantizada - costoGas - multa).toFixed(2));
+        ingresosBrutos += tarifaGarantizada;
+        gastoGasolina += costoGas;
+        gananciaNeta += neto;
+        kmTotales += kmViaje;
+
+        ordenActiva = null;
+      }
+
+      // Si el conductor está libre y no ha terminado el turno, asignar nueva orden
+      if (!ordenActiva && !isFinished) {
+        const origenIdx = Math.floor(Math.random() * ZONAS_MONTERREY.length);
+        const destIdx = (origenIdx + 2) % ZONAS_MONTERREY.length;
+        const origen = ZONAS_MONTERREY[origenIdx];
+        const destino = ZONAS_MONTERREY[destIdx];
+
+        const isBatch = prev.tipoAgente === 'OPTIGO_AI' && Math.random() > 0.45;
+        const duracionViaje = isBatch ? 28 : 19;
+        const tarifaBase = isBatch ? 74.0 : 42.0;
+        const propina = isBatch ? 25.0 : 15.0;
+        const tarifaTotal = Number(((tarifaBase * surge) + propina).toFixed(2));
+
+        let log = "";
+        if (prev.tipoAgente === 'OPTIGO_AI') {
+          if (avenidaCerrada) {
+            log = `🛡️ [SUPERVISOR VETO]: Ruta directa cruza ${avenidaCerrada} bloqueada. Desvío inteligente hacia ${destino} aprobado (+61% rentabilidad).`;
+          } else if (isBatch) {
+            log = `🤖 [ESTRATEGA]: Batch dual de 2 pedidos resuelto con Google OR-Tools (${tarifaTotal} MXN).`;
+          } else {
+            log = `🤖 [ESTRATEGA]: Viaje individual de alta tasa $/hr (${origen} -> ${destino}) verificado con SLA puntual.`;
+          }
+        } else {
+          log = `Greedy asignó automáticamente la primera orden disponible hacia ${destino} sin optimizar desvíos.`;
+        }
+
+        ordenActiva = {
+          tipo: isBatch ? 'BATCH' : 'INDIVIDUAL',
+          pedidos: [],
+          origen,
+          destino,
+          paradasSecuencia: isBatch ? [origen, "Centro MTY (Barrio Antiguo)", destino] : [origen, destino],
+          minutoFinViaje: nuevoMinuto + duracionViaje,
+          tarifaTotal,
+          propinaTotal: propina,
+          logExplicativo: log,
+        };
+
+        // Mover posición hacia el restaurante
+        ubicacionActual = origen;
+        coordenadasActuales = MONTERREY_NODES[origen] || coordenadasActuales;
+        estadoConexion = 'EN_CAMINO_DELIVERY';
+      }
+
+      return {
+        ...prev,
+        minuto: nuevoMinuto,
+        estadoTurno: isFinished ? 'FINALIZADO' : 'EN_CURSO',
+        estadoConexion: isFinished ? 'DESCONECTADO' : estadoConexion,
+        clima,
+        temperatura: temp,
+        factorTrafico: trafico,
+        factorSurge: surge,
+        avenidaCerrada,
+        zonasAfectadas,
+        ubicacionActual,
+        coordenadasActuales,
+        ordenActiva,
+        gananciaNeta: Number(gananciaNeta.toFixed(2)),
+        ingresosBrutos: Number(ingresosBrutos.toFixed(2)),
+        gastoGasolina: Number(gastoGasolina.toFixed(2)),
+        penalizacionesSla: Number(penalizacionesSla.toFixed(2)),
+        pedidosCompletados,
+        batchesRealizados,
+        pedidosConRetraso,
+        kmTotales: Number(kmTotales.toFixed(1)),
+        kmVacio: Number(kmVacio.toFixed(1)),
+      };
+    });
+  }, []);
+
+  // Intervalo de auto-reproducción (1 tick = 1 segundo avanza 3 minutos de turno)
+  useEffect(() => {
+    if (isPlaying) {
+      timerRef.current = setInterval(() => {
+        stepSimulation(3);
+      }, 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isPlaying, stepSimulation]);
+
+  // Si el turno finaliza automáticamente, pausar y abrir modal de resumen
+  useEffect(() => {
+    if (shiftState.estadoTurno === 'FINALIZADO') {
+      setIsPlaying(false);
+      setIsSummaryOpen(true);
+    }
+  }, [shiftState.estadoTurno]);
+
+  // Manejadores de control
+  const handleTogglePlay = () => setIsPlaying(!isPlaying);
+  const handleStepForward = (mins: number) => stepSimulation(mins);
+  const handleResetShift = () => {
+    setIsPlaying(false);
+    setShiftState(ESTADO_INICIAL);
+  };
+  const handleEndShift = () => {
+    setIsPlaying(false);
+    setShiftState((prev) => ({
+      ...prev,
+      estadoTurno: 'FINALIZADO',
+      estadoConexion: 'DESCONECTADO',
+    }));
+    setIsSummaryOpen(true);
+  };
+
+  const handleChangeAgent = (tipo: 'OPTIGO_AI' | 'GREEDY') => {
+    setShiftState((prev) => ({
+      ...prev,
+      tipoAgente: tipo,
+    }));
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-5">
+      {/* Botón de Regreso a Home */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 px-3.5 py-1.5 rounded-xl border border-white/20 backdrop-blur-md transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Volver al Inicio</span>
+        </Link>
+
+        <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-slate-950/60 border border-white/15 px-3 py-1.5 rounded-xl backdrop-blur-md">
+          <Car className="w-4 h-4 text-emerald-400" />
+          <span>OptiGo Driver App • Monterrey</span>
+        </div>
+      </div>
+
+      {/* Header Principal de Control de Conductor */}
+      <DriverHeader
+        shiftState={shiftState}
+        isPlaying={isPlaying}
+        onTogglePlay={handleTogglePlay}
+        onStepForward={handleStepForward}
+        onResetShift={handleResetShift}
+        onEndShift={handleEndShift}
+        onChangeAgent={handleChangeAgent}
+      />
+
+      {/* Banner de Alertas Meteorológicas e Incidentes Viales */}
+      <WeatherAlertBanner shiftState={shiftState} />
+
+      {/* Grid Principal: Mapa a la izquierda / Paneles de Ganancias y Orden a la derecha */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch flex-1">
+        {/* Mapa Interactivo de Monterrey (7 Columnas en Desktop) */}
+        <div className="lg:col-span-7 flex flex-col">
+          <DriverMap shiftState={shiftState} />
+        </div>
+
+        {/* Panel Lateral: Ganancias en tiempo real + Orden activa (5 Columnas) */}
+        <div className="lg:col-span-5 flex flex-col gap-5 justify-between">
+          <DriverEarningsCard shiftState={shiftState} />
+          <ActiveOrderCard shiftState={shiftState} />
+        </div>
+      </div>
+
+      {/* Modal de Fin de Turno con Balance Completo */}
+      <ShiftSummaryModal
+        isOpen={isSummaryOpen}
+        shiftState={shiftState}
+        onClose={() => setIsSummaryOpen(false)}
+        onRestartShift={handleResetShift}
+      />
+    </div>
+  );
+}
