@@ -154,6 +154,57 @@ export const MONTERREY_CORRIDORS: Record<
   },
 };
 
+/**
+ * Calculates straight-line and winding road distance in km between two Monterrey metropolitan zones
+ */
+export function getZoneDistanceKm(origin: ZoneName | string, destination: ZoneName | string): number {
+  if (origin === destination) return 0.0;
+  const o = MONTERREY_NODES[origin as ZoneName];
+  const d = MONTERREY_NODES[destination as ZoneName];
+  if (!o || !d) return 4.5;
+
+  const R = 6371; // Earth radius in km
+  const dLat = (d.lat - o.lat) * (Math.PI / 180);
+  const dLng = (d.lng - o.lng) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(o.lat * (Math.PI / 180)) * Math.cos(d.lat * (Math.PI / 180)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const crowKm = R * c;
+  // Monterrey metropolitan road factor: 1.35x due to mountain geography and urban avenues
+  return Number(Math.max(2.4, crowKm * 1.35).toFixed(1));
+}
+
+/**
+ * Calculates total trip distance, deadhead distance (transition to pickup), and delivery distance
+ */
+export function calculateRouteDistances(
+  stops: (ZoneName | string)[],
+  hasPickupTransition: boolean
+): { totalKm: number; deadheadKm: number; deliveryKm: number } {
+  if (stops.length < 2) return { totalKm: 0, deadheadKm: 0, deliveryKm: 0 };
+
+  let deadheadKm = 0;
+  let deliveryKm = 0;
+
+  for (let i = 0; i < stops.length - 1; i++) {
+    const d = getZoneDistanceKm(stops[i], stops[i + 1]);
+    if (i === 0 && hasPickupTransition) {
+      deadheadKm += d;
+    } else {
+      deliveryKm += d;
+    }
+  }
+
+  const totalKm = Number((deadheadKm + deliveryKm).toFixed(1));
+  return {
+    totalKm,
+    deadheadKm: Number(deadheadKm.toFixed(1)),
+    deliveryKm: Number(deliveryKm.toFixed(1)),
+  };
+}
+
 export interface OrderPlanResult {
   tipo: 'INDIVIDUAL' | 'BATCH';
   origen: ZoneName;
@@ -162,6 +213,8 @@ export interface OrderPlanResult {
   duracionViaje: number;
   tarifaBase: number;
   propina: number;
+  distanciaKmTotal: number;
+  kmVacioViaje: number;
   hasPickupTransition: boolean;
   transicionDesde?: ZoneName;
   logExplicativo: string;
@@ -284,7 +337,8 @@ export function getNextOrderPlan(
   currentLocation: ZoneName,
   isOptiGo: boolean,
   surge: number = 1.0,
-  avenidaCerrada: string | null = null
+  avenidaCerrada: string | null = null,
+  trafico: number = 1.0
 ): OrderPlanResult {
   const corridor = MONTERREY_CORRIDORS[currentLocation] || MONTERREY_CORRIDORS["Centro MTY (Barrio Antiguo)"];
 
@@ -299,7 +353,7 @@ export function getNextOrderPlan(
 
   let destino: ZoneName;
   let paradasSecuencia: ZoneName[];
-  let duracionViaje: number;
+  let baseMinutes: number;
   let tarifaBase: number;
   let propina: number;
   let log = "";
@@ -312,15 +366,15 @@ export function getNextOrderPlan(
     
     if (needTransition) {
       paradasSecuencia = [currentLocation, pickupHub, batchPair[0], batchPair[1]];
-      duracionViaje = 28;
-      tarifaBase = 88.0;
-      propina = 28.0;
+      baseMinutes = 26;
+      tarifaBase = 84.0;
+      propina = 26.0;
       log = `🤖 [STRATEGIST]: Relocation from ${currentLocation} to ${pickupHub}. Dual batch solved with Google OR-Tools towards ${batchPair[0]} & ${batchPair[1]}.`;
     } else {
       paradasSecuencia = [currentLocation, batchPair[0], batchPair[1]];
-      duracionViaje = 24;
-      tarifaBase = 76.0;
-      propina = 25.0;
+      baseMinutes = 22;
+      tarifaBase = 74.0;
+      propina = 24.0;
       log = `🤖 [STRATEGIST]: Dual batch departing from ${currentLocation} solved with Google OR-Tools. High $/hr density corridor towards ${batchPair[0]} and ${batchPair[1]}.`;
     }
   } else {
@@ -329,22 +383,25 @@ export function getNextOrderPlan(
 
     if (needTransition) {
       paradasSecuencia = [currentLocation, pickupHub, destino];
-      duracionViaje = 20;
-      tarifaBase = 52.0;
-      propina = 16.0;
+      baseMinutes = 19;
+      tarifaBase = 48.0;
+      propina = 15.0;
       log = isOptiGo
         ? `🤖 [STRATEGIST]: Short pickup relocation (${currentLocation} -> ${pickupHub}) for high-yield delivery to ${destino}. Verified on-time SLA.`
         : `Greedy dispatch relocated driver to ${pickupHub} to accept delivery towards ${destino}.`;
     } else {
       paradasSecuencia = [currentLocation, destino];
-      duracionViaje = 16;
-      tarifaBase = 42.0;
-      propina = 14.0;
+      baseMinutes = 15;
+      tarifaBase = 38.0;
+      propina = 12.0;
       log = isOptiGo
         ? `🤖 [STRATEGIST]: Direct single delivery from ${currentLocation} to ${destino} along Monterrey primary arterial network.`
         : `Greedy baseline automatically took first available order towards ${destino}.`;
     }
   }
+
+  // Adjust trip duration realistically based on current metropolitan traffic index
+  let duracionViaje = Math.max(12, Math.round(baseMinutes * Math.min(1.45, Math.max(0.9, trafico))));
 
   // Si hay una vía cerrada y es OptiGo AI, verificar si la ruta planificada la cruza y aplicar desvío seguro
   if (avenidaCerrada && isOptiGo) {
@@ -362,6 +419,9 @@ export function getNextOrderPlan(
     }
   }
 
+  // Calculate actual realistic road distance in km for this route
+  const distMetrics = calculateRouteDistances(paradasSecuencia, needTransition);
+
   return {
     tipo: isBatch ? 'BATCH' : 'INDIVIDUAL',
     origen: pickupHub,
@@ -370,6 +430,8 @@ export function getNextOrderPlan(
     duracionViaje,
     tarifaBase,
     propina,
+    distanciaKmTotal: distMetrics.totalKm,
+    kmVacioViaje: distMetrics.deadheadKm,
     hasPickupTransition: needTransition,
     transicionDesde: needTransition ? currentLocation : undefined,
     logExplicativo: log,

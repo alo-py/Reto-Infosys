@@ -63,6 +63,10 @@ export interface ActiveShiftState {
   avenidaCerrada: string | null;
   zonasAfectadas: string[];
 
+  // Dynamic Simulation Timing & Incentives
+  disponibleEnMinuto?: number;
+  bonoDesbloqueado?: boolean;
+
   // Orden activa o batch en ejecución
   ordenActiva: {
     tipo: 'INDIVIDUAL' | 'BATCH';
@@ -74,6 +78,8 @@ export interface ActiveShiftState {
     minutoFinViaje: number;
     tarifaTotal: number;
     propinaTotal: number;
+    distanciaKmTotal?: number;
+    kmVacioViaje?: number;
     logExplicativo: string;
     agenteRazonamiento?: string;
     hasPickupTransition?: boolean;

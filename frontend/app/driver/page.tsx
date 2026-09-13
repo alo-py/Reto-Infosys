@@ -115,6 +115,9 @@ const createInitialState = (
     avenidaCerrada,
     zonasAfectadas,
 
+    disponibleEnMinuto: 0,
+    bonoDesbloqueado: false,
+
     ordenActiva: null,
   };
 };
@@ -221,6 +224,8 @@ function advanceSimulation(
   let ubicacionActual = prev.ubicacionActual;
   let coordenadasActuales = prev.coordenadasActuales;
   let estadoConexion = prev.estadoConexion;
+  let disponibleEnMinuto = prev.disponibleEnMinuto ?? 0;
+  let bonoDesbloqueado = prev.bonoDesbloqueado ?? false;
 
   // Check if active order completes
   if (ordenActiva && nuevoMinuto >= ordenActiva.minutoFinViaje) {
@@ -234,25 +239,50 @@ function advanceSimulation(
       batchesRealizados += 1;
     }
 
-    const tarifaGarantizada = ordenActiva.tarifaTotal;
-    const kmViaje = ordenActiva.tipo === 'BATCH' ? 14.5 : 8.2;
+    // Dynamic real road distance from Monterrey route calculation
+    const kmViaje = ordenActiva.distanciaKmTotal ?? (ordenActiva.tipo === 'BATCH' ? 13.5 : 7.5);
+    const kmVacioLeg = ordenActiva.kmVacioViaje ?? (ordenActiva.hasPickupTransition ? 3.2 : 0.0);
+    kmTotales += kmViaje;
+    kmVacio += kmVacioLeg;
+
     const costoGas = Number((kmViaje * 0.90).toFixed(2));
 
-    // If Greedy agent crossed during road closure without detour, apply penalty
+    // SLA penalty: ONLY if Greedy route actually intersects the blocked avenue
     let multa = 0;
-    if (prev.tipoAgente === 'GREEDY' && avenidaCerrada) {
-      multa = 22.50;
+    const cruzoBloqueo = Boolean(
+      avenidaCerrada && 
+      routeIntersectsBlockage(ordenActiva.paradasSecuencia, avenidaCerrada)
+    );
+
+    if (prev.tipoAgente === 'GREEDY' && cruzoBloqueo) {
+      // Severe gridlock delay: customer pulls tip + 25% SLA deduction from base fare
+      const multaPropina = ordenActiva.propinaTotal;
+      const tarifaBase = Math.max(0, ordenActiva.tarifaTotal - ordenActiva.propinaTotal);
+      const penalizacionBase = Number((tarifaBase * 0.25).toFixed(2));
+      multa = Number((multaPropina + penalizacionBase).toFixed(2));
       pedidosConRetraso += 1;
       penalizacionesSla += multa;
     }
 
+    const tarifaGarantizada = ordenActiva.tarifaTotal;
     const neto = Number((tarifaGarantizada - costoGas - multa).toFixed(2));
     ingresosBrutos += tarifaGarantizada;
     gastoGasolina += costoGas;
     gananciaNeta += neto;
-    kmTotales += kmViaje;
+
+    // Check block incentive goal (5 orders = +$80 MXN bonus)
+    if (pedidosCompletados >= 5 && !bonoDesbloqueado) {
+      const bonoIncentivo = 80.0;
+      gananciaNeta += bonoIncentivo;
+      ingresosBrutos += bonoIncentivo;
+      bonoDesbloqueado = true;
+    }
 
     ordenActiva = null;
+
+    // Realistic matching/dispatch search latency:
+    // OptiGo AI chains orders within 1 min; Greedy takes 2-3 min waiting for next available single ping
+    disponibleEnMinuto = nuevoMinuto + (prev.tipoAgente === 'OPTIGO_AI' ? 1 : 3);
   } else if (ordenActiva && nuevoMinuto < ordenActiva.minutoFinViaje) {
     // Road incident detection and dynamic detour reroute mid-journey
     if (avenidaCerrada && !ordenActiva.estaDesviado) {
@@ -333,43 +363,50 @@ function advanceSimulation(
     }
   }
 
-  // Assign new order if driver is idle and shift not finished
+  // Assign new order if driver is idle, has passed dispatch latency, and shift not finished
   if (!ordenActiva && !isFinished) {
-    const plan = getNextOrderPlan(
-      ubicacionActual,
-      prev.tipoAgente === 'OPTIGO_AI',
-      surge,
-      avenidaCerrada
-    );
-    const streetPath = buildFullStreetSequence(plan.paradasSecuencia);
-    const tarifaTotal = Number(((plan.tarifaBase * surge) + plan.propina).toFixed(2));
-    const paradas = plan.paradasSecuencia;
-    const tramoActualOrigen = paradas[0];
-    const tramoActualDestino = paradas[1];
+    if (nuevoMinuto >= disponibleEnMinuto) {
+      const plan = getNextOrderPlan(
+        ubicacionActual,
+        prev.tipoAgente === 'OPTIGO_AI',
+        surge,
+        avenidaCerrada,
+        trafico
+      );
+      const streetPath = buildFullStreetSequence(plan.paradasSecuencia);
+      const tarifaTotal = Number(((plan.tarifaBase * surge) + plan.propina).toFixed(2));
+      const paradas = plan.paradasSecuencia;
+      const tramoActualOrigen = paradas[0];
+      const tramoActualDestino = paradas[1];
 
-    ordenActiva = {
-      tipo: plan.tipo,
-      pedidos: [],
-      origen: plan.origen,
-      destino: plan.destino,
-      paradasSecuencia: plan.paradasSecuencia,
-      minutoInicioViaje: nuevoMinuto,
-      minutoFinViaje: nuevoMinuto + plan.duracionViaje,
-      tarifaTotal,
-      propinaTotal: plan.propina,
-      logExplicativo: plan.logExplicativo,
-      hasPickupTransition: plan.hasPickupTransition,
-      transicionDesde: plan.transicionDesde,
-      faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
-      streetPath,
-      estaDesviado: plan.estaDesviado,
-      desvioExplicacion: plan.desvioExplicacion,
-      indiceTramoActual: 0,
-      tramoActualOrigen,
-      tramoActualDestino,
-    };
+      ordenActiva = {
+        tipo: plan.tipo,
+        pedidos: [],
+        origen: plan.origen,
+        destino: plan.destino,
+        paradasSecuencia: plan.paradasSecuencia,
+        minutoInicioViaje: nuevoMinuto,
+        minutoFinViaje: nuevoMinuto + plan.duracionViaje,
+        tarifaTotal,
+        propinaTotal: plan.propina,
+        distanciaKmTotal: plan.distanciaKmTotal,
+        kmVacioViaje: plan.kmVacioViaje,
+        logExplicativo: plan.logExplicativo,
+        hasPickupTransition: plan.hasPickupTransition,
+        transicionDesde: plan.transicionDesde,
+        faseActual: plan.hasPickupTransition ? 'TRANSICION_PICKUP' : 'ENTREGA',
+        streetPath,
+        estaDesviado: plan.estaDesviado,
+        desvioExplicacion: plan.desvioExplicacion,
+        indiceTramoActual: 0,
+        tramoActualOrigen,
+        tramoActualDestino,
+      };
 
-    estadoConexion = plan.hasPickupTransition ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY';
+      estadoConexion = plan.hasPickupTransition ? 'EN_CAMINO_PICKUP' : 'EN_CAMINO_DELIVERY';
+    } else {
+      estadoConexion = 'DISPONIBLE';
+    }
   }
 
   return {
@@ -377,6 +414,8 @@ function advanceSimulation(
     minuto: nuevoMinuto,
     estadoTurno: isFinished ? 'FINALIZADO' : 'EN_CURSO',
     estadoConexion: isFinished ? 'DESCONECTADO' : estadoConexion,
+    disponibleEnMinuto,
+    bonoDesbloqueado,
     clima,
     temperatura: temp,
     factorTrafico: trafico,

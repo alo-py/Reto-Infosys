@@ -100,11 +100,11 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
             <div className="flex items-start gap-2.5">
               <div className="mt-1 w-3 h-3 rounded-full bg-sky-400 border-2 border-slate-900 shrink-0 shadow-[0_0_6px_#38bdf8]" />
               <div className="text-xs">
-                <span className="text-[10px] text-sky-300 uppercase font-mono">Transition Start:</span>
+                <span className="text-[10px] text-sky-300 uppercase font-mono">Deadhead Relocation:</span>
                 <div className="font-semibold text-white">{orden.transicionDesde}</div>
               </div>
             </div>
-            <div className="ml-1.5 w-0.5 h-3.5 bg-sky-400/40 border-l border-dashed border-sky-400/60 my-0.5" />
+            <div className="ml-1.5 w-0.5 h-3 bg-sky-400/40 border-l border-dashed border-sky-400/60 my-0.5" />
           </>
         )}
 
@@ -116,17 +116,40 @@ export default function ActiveOrderCard({ shiftState }: ActiveOrderCardProps) {
           </div>
         </div>
 
-        <div className="ml-1.5 w-0.5 h-3.5 bg-emerald-400/40 border-l border-dashed border-emerald-400/60 my-0.5" />
+        {/* If Batch with 2 drop-offs, display Stop 1 then Final Stop 2 */}
+        {isBatch && orden.paradasSecuencia.length >= (orden.hasPickupTransition ? 4 : 3) && (
+          <>
+            <div className="ml-1.5 w-0.5 h-3 bg-purple-400/40 border-l border-dashed border-purple-400/60 my-0.5" />
+            <div className="flex items-start gap-2.5">
+              <div className="mt-1 w-3 h-3 rounded-full bg-purple-400 border-2 border-slate-900 shrink-0 shadow-[0_0_6px_#c084fc]" />
+              <div className="text-xs">
+                <span className="text-[10px] text-purple-300 uppercase font-mono">Drop-off 1 (Customer A):</span>
+                <div className="font-semibold text-white">{orden.paradasSecuencia[orden.hasPickupTransition ? 2 : 1]}</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="ml-1.5 w-0.5 h-3 bg-emerald-400/40 border-l border-dashed border-emerald-400/60 my-0.5" />
 
         <div className="flex items-start gap-2.5">
           <div className="mt-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900 shrink-0 shadow-[0_0_6px_#10b981]" />
           <div className="text-xs">
             <span className="text-[10px] text-emerald-300 uppercase font-mono">
-              {isBatch ? 'Final Drop-off (OR-Tools):' : 'Destination (Drop-off):'}
+              {isBatch ? 'Drop-off 2 (Customer B - Final):' : 'Destination (Drop-off):'}
             </span>
             <div className="font-semibold text-white">{orden.destino}</div>
           </div>
         </div>
+
+        {orden.distanciaKmTotal && (
+          <div className="pt-1 text-[10px] text-slate-300 font-mono flex items-center gap-2">
+            <span>Route: <strong>{orden.distanciaKmTotal} km</strong></span>
+            {orden.kmVacioViaje ? (
+              <span className="text-sky-300">• ({orden.kmVacioViaje} km deadhead to pickup)</span>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* 3. DeepSeek Dual-Agent Deliberation */}

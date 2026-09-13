@@ -36,16 +36,19 @@ export default function ShiftSummaryModal({
 }: ShiftSummaryModalProps) {
   if (!isOpen) return null;
 
-  // Real or estimated comparison
+  // Real or benchmark projection comparison
   const isOptigo = shiftState.tipoAgente === 'OPTIGO_AI';
   const otherIsGreedy = comparisonState && comparisonState.tipoAgente === 'GREEDY';
   const otherIsOptigo = comparisonState && comparisonState.tipoAgente === 'OPTIGO_AI';
+  const hasBothRun = Boolean(comparisonState && (comparisonState.pedidosCompletados > 0 || comparisonState.estadoTurno === 'FINALIZADO'));
 
-  const realDiff = isOptigo && otherIsGreedy
-    ? shiftState.gananciaNeta - comparisonState.gananciaNeta
-    : otherIsOptigo && !isOptigo
-    ? comparisonState.gananciaNeta - shiftState.gananciaNeta
-    : Math.max(35.0, shiftState.gananciaNeta * 0.22);
+  const realDiff = hasBothRun
+    ? (isOptigo && otherIsGreedy
+        ? shiftState.gananciaNeta - comparisonState.gananciaNeta
+        : otherIsOptigo && !isOptigo
+        ? comparisonState.gananciaNeta - shiftState.gananciaNeta
+        : null)
+    : null;
 
   const tasaSla = shiftState.pedidosCompletados > 0
     ? Math.round(((shiftState.pedidosCompletados - shiftState.pedidosConRetraso) / shiftState.pedidosCompletados) * 100)
@@ -122,9 +125,11 @@ export default function ShiftSummaryModal({
             <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-200 text-xs font-bold border border-emerald-300/30">
               <TrendingUp className="w-3.5 h-3.5" />
               <span>
-                {realDiff >= 0 
-                  ? `+$${realDiff.toFixed(2)} MXN vs Greedy Baseline`
-                  : `-$${Math.abs(realDiff).toFixed(2)} MXN difference`}
+                {realDiff !== null
+                  ? (realDiff >= 0 
+                      ? `+$${realDiff.toFixed(2)} MXN vs Greedy Baseline`
+                      : `-$${Math.abs(realDiff).toFixed(2)} MXN difference`)
+                  : '+25% - 40% projected net margin vs unoptimized dispatch'}
               </span>
             </div>
           )}
