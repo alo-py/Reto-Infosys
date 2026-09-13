@@ -9,6 +9,7 @@ import {
   LocationCoord, 
   ZoneName 
 } from './types';
+import { buildFullStreetSequence } from './streetRouting';
 
 interface DriverMapProps {
   shiftState: ActiveShiftState;
@@ -205,7 +206,7 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
     };
   }, [shiftState.coordenadasActuales]);
 
-  // 3. Dibujar la ruta optimizada activa (OR-Tools / Secuencia de paradas)
+  // 3. Dibujar la ruta optimizada activa en calles reales de Monterrey (OR-Tools / OSM)
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
@@ -215,22 +216,12 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
       routePolylineRef.current = null;
     }
 
-    if (shiftState.ordenActiva && shiftState.ordenActiva.paradasSecuencia.length > 0) {
-      const paradas = shiftState.ordenActiva.paradasSecuencia;
-      const latlngs: [number, number][] = [
-        [shiftState.coordenadasActuales.lat, shiftState.coordenadasActuales.lng],
-      ];
+    if (shiftState.ordenActiva && shiftState.ordenActiva.paradasSecuencia.length >= 2) {
+      const fullStreetPath = buildFullStreetSequence(shiftState.ordenActiva.paradasSecuencia);
 
-      paradas.forEach((p) => {
-        const node = MONTERREY_NODES[p as ZoneName];
-        if (node) {
-          latlngs.push([node.lat, node.lng]);
-        }
-      });
-
-      if (latlngs.length >= 2) {
-        // Trazado de ruta estilo neón Uber/DiDi
-        const polyline = L.polyline(latlngs, {
+      if (fullStreetPath.length >= 2) {
+        // Trazado de ruta estilo neón Uber/DiDi siguiendo la red vial real de Monterrey
+        const polyline = L.polyline(fullStreetPath, {
           color: '#10b981',
           weight: 5,
           opacity: 0.95,
@@ -241,7 +232,7 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
         routePolylineRef.current = polyline;
       }
     }
-  }, [shiftState.ordenActiva, shiftState.coordenadasActuales]);
+  }, [shiftState.ordenActiva]);
 
   // 4. Dibujar incidentes viales (Avenidas cerradas en rojo)
   useEffect(() => {

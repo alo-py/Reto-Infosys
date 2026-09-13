@@ -14,6 +14,7 @@ import {
   MONTERREY_NODES, 
   ZoneName 
 } from '@/app/ui/Components/Driver/types';
+import { buildFullStreetSequence } from '@/app/ui/Components/Driver/streetRouting';
 
 // Carga dinámica de Leaflet con SSR desactivado para evitar errores de window
 const DriverMap = dynamic(
@@ -166,26 +167,27 @@ export default function DriverAppPage() {
 
         ordenActiva = null;
       } else if (ordenActiva && nuevoMinuto < ordenActiva.minutoFinViaje) {
-        // Desplazamiento dinámico continuo a lo largo de la ruta trazada en Monterrey
+        // Desplazamiento dinámico continuo a lo largo de las calles reales de Monterrey
         const duracion = Math.max(1, ordenActiva.minutoFinViaje - ordenActiva.minutoInicioViaje);
         const transcurrido = Math.max(0, nuevoMinuto - ordenActiva.minutoInicioViaje);
         const ratio = Math.min(1.0, transcurrido / duracion);
 
         const paradas = ordenActiva.paradasSecuencia;
-        if (paradas.length >= 2) {
-          const numSegmentos = paradas.length - 1;
+        const streetPath = buildFullStreetSequence(paradas);
+
+        if (streetPath.length >= 2) {
+          const numSegmentos = streetPath.length - 1;
           const posEscalada = ratio * numSegmentos;
           const idxSeg = Math.min(Math.floor(posEscalada), numSegmentos - 1);
           const tSeg = posEscalada - idxSeg;
 
-          const pA = MONTERREY_NODES[paradas[idxSeg]];
-          const pB = MONTERREY_NODES[paradas[idxSeg + 1]];
+          const pA = streetPath[idxSeg];
+          const pB = streetPath[idxSeg + 1];
           if (pA && pB) {
             coordenadasActuales = {
-              lat: Number((pA.lat + (pB.lat - pA.lat) * tSeg).toFixed(5)),
-              lng: Number((pA.lng + (pB.lng - pA.lng) * tSeg).toFixed(5)),
+              lat: Number((pA[0] + (pB[0] - pA[0]) * tSeg).toFixed(5)),
+              lng: Number((pA[1] + (pB[1] - pA[1]) * tSeg).toFixed(5)),
             };
-            ubicacionActual = paradas[idxSeg];
           }
         }
       }

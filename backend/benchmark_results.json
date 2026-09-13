@@ -1,0 +1,240 @@
+{
+  "resultados": [
+    {
+      "run_id": 1,
+      "clima": "SIN_LLUVIA",
+      "incidente": "ACCIDENTE_VIAL (Av. Constituci\u00f3n)",
+      "greedy_neto": 303.93,
+      "optigo_neto": 290.41,
+      "dif_mxn": -13.52,
+      "dif_pct": -4.45,
+      "greedy_pedidos": 4,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 0,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 0.0,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 59.63,
+      "optigo_gasolina": 39.17,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> El pedido #59 no cruza avenidas cerradas y ofrece la mayor rentabilidad por hora, aunque el calor extremo representa un riesgo moderado.",
+        "[M033] \ud83d\udee1\ufe0f [SUPERVISOR VETO]: El pedido #82 no cruza la Av. Constituci\u00f3n cerrada y ofrece la mayor rentabilidad segura, mientras que las alternativas con destino en zonas afectadas implican riesgo cr\u00edtico. -> Ejecutando alternativa segura SOLO_82 ($187.6/hr)",
+        "[M056] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_41 ($198.0/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> No hay avenidas cerradas ni riesgo cr\u00edtico; SOLO_41 ofrece la mayor rentabilidad por hora y cumple con el SLA.",
+        "[M073] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_56 ($186.7/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La opci\u00f3n SOLO_56 no cruza avenidas cerradas, cumple con el deadline y ofrece la mayor rentabilidad por hora."
+      ]
+    },
+    {
+      "run_id": 2,
+      "clima": "TORMENTA_SEVERA",
+      "incidente": "ACCIDENTE_VIAL (Blvd. D\u00edaz Ordaz)",
+      "greedy_neto": 266.26,
+      "optigo_neto": 222.56,
+      "dif_mxn": -43.7,
+      "dif_pct": -16.41,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 3,
+      "greedy_retrasos": 0,
+      "optigo_retrasos": 1,
+      "greedy_penalizacion": 0.0,
+      "optigo_penalizacion": 29.11,
+      "greedy_gasolina": 40.99,
+      "optigo_gasolina": 43.78,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #59 es transitable, no cruza zonas bloqueadas y ofrece la mayor rentabilidad por hora (174.6 $/hr).",
+        "[M033] \ud83d\udee1\ufe0f [SUPERVISOR VETO]: El pedido #82 cruza el Blvd. D\u00edaz Ordaz cerrado y su destino en Centrito Valle est\u00e1 en zona afectada; se elige SOLO_15 por ser la alternativa segura m\u00e1s rentable sin cruzar arterias bloqueadas. -> Ejecutando alternativa segura SOLO_15 ($73.6/hr)",
+        "[M088] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_91 ($210.8/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La ruta de SOLO_91 no cruza arterias bloqueadas, cumple el deadline y ofrece la mayor rentabilidad por hora (210.8 $/hr) en condiciones de calor extremo sin lluvia."
+      ]
+    },
+    {
+      "run_id": 3,
+      "clima": "LLUVIA_LIGERA",
+      "incidente": "NINGUNO",
+      "greedy_neto": 189.6,
+      "optigo_neto": 284.76,
+      "dif_mxn": 95.16,
+      "dif_pct": 50.19,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 1,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 44.67,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 50.65,
+      "optigo_gasolina": 39.17,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> No hay avenidas cerradas ni riesgo cr\u00edtico; SOLO_59 ofrece la mayor rentabilidad por hora y cumple con el deadline.",
+        "[M033] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_82 ($223.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #82 no cruza avenidas cerradas, tiene alta rentabilidad y cumple con el deadline sin penalizaci\u00f3n.",
+        "[M052] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_81 ($172.1/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #81 no cruza avenidas cerradas, cumple el SLA y ofrece la mayor rentabilidad por hora (172.1 $/hr) en condiciones de lluvia ligera.",
+        "[M072] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_56 ($166.2/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> El pedido #56 no cruza avenidas cerradas y su tiempo de entrega est\u00e1 dentro del deadline, ofreciendo la mayor rentabilidad por hora."
+      ]
+    },
+    {
+      "run_id": 4,
+      "clima": "SIN_LLUVIA",
+      "incidente": "CIERRE_AVENIDA (Blvd. D\u00edaz Ordaz)",
+      "greedy_neto": 197.82,
+      "optigo_neto": 275.83,
+      "dif_mxn": 78.01,
+      "dif_pct": 39.43,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 1,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 20.0,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 50.65,
+      "optigo_gasolina": 39.17,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido SOLO_59 no cruza avenidas cerradas, es viable en tiempo y ofrece la mayor rentabilidad por hora.",
+        "[M033] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_82 ($223.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #82 no cruza avenidas cerradas, tiene alta rentabilidad y cumple con el deadline sin penalizaci\u00f3n.",
+        "[M052] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_81 ($155.1/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La opci\u00f3n SOLO_81 no cruza avenidas cerradas ni zonas afectadas, y su tiempo total de 19.4 min no excede el deadline del cliente, ofreciendo la mayor rentabilidad por hora.",
+        "[M071] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_56 ($162.9/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> SOLO_56 ofrece la mayor rentabilidad por hora (162.9 $/hr) sin cruzar avenidas cerradas ni exceder el deadline del cliente."
+      ]
+    },
+    {
+      "run_id": 5,
+      "clima": "SIN_LLUVIA",
+      "incidente": "NINGUNO",
+      "greedy_neto": 197.82,
+      "optigo_neto": 275.83,
+      "dif_mxn": 78.01,
+      "dif_pct": 39.43,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 1,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 20.0,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 50.65,
+      "optigo_gasolina": 39.17,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> El pedido #59 es transitable, no cruza avenidas cerradas y ofrece la mayor rentabilidad por hora, aunque el calor extremo representa un riesgo medio.",
+        "[M033] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_82 ($223.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #82 no cruza avenidas cerradas ni zonas afectadas, y su tiempo de 19.3 min est\u00e1 dentro del deadline, ofreciendo la mayor rentabilidad por hora.",
+        "[M052] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_81 ($155.1/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La opci\u00f3n SOLO_81 no cruza avenidas cerradas, no excede el deadline y ofrece la mayor rentabilidad por hora (155.1 $/hr).",
+        "[M071] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_56 ($162.9/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> La opci\u00f3n SOLO_56 no cruza avenidas cerradas y su tiempo est\u00e1 dentro del deadline, ofreciendo la mayor rentabilidad por hora."
+      ]
+    },
+    {
+      "run_id": 6,
+      "clima": "LLUVIA_LIGERA",
+      "incidente": "NINGUNO",
+      "greedy_neto": 197.82,
+      "optigo_neto": 284.65,
+      "dif_mxn": 86.83,
+      "dif_pct": 43.89,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 1,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 20.0,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 50.65,
+      "optigo_gasolina": 39.17,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> No hay avenidas cerradas ni riesgo cr\u00edtico; SOLO_59 es la opci\u00f3n m\u00e1s rentable y segura.",
+        "[M033] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_82 ($223.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #82 no cruza avenidas cerradas, tiene alta rentabilidad y cumple con el deadline sin penalizaci\u00f3n.",
+        "[M052] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_81 ($155.1/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La opci\u00f3n SOLO_81 no cruza avenidas cerradas, cumple el SLA y ofrece la mayor rentabilidad por hora (155.1 $/hr) en condiciones seguras.",
+        "[M071] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_56 ($155.8/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La opci\u00f3n SOLO_56 no cruza avenidas cerradas, tiene alta rentabilidad y tiempo aceptable, sin riesgo cr\u00edtico."
+      ]
+    },
+    {
+      "run_id": 7,
+      "clima": "LLUVIA_LIGERA",
+      "incidente": "CIERRE_AVENIDA (Av. Gonzalitos)",
+      "greedy_neto": 261.79,
+      "optigo_neto": 196.62,
+      "dif_mxn": -65.17,
+      "dif_pct": -24.89,
+      "greedy_pedidos": 4,
+      "optigo_pedidos": 3,
+      "greedy_retrasos": 0,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 0.0,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 44.8,
+      "optigo_gasolina": 54.77,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> No hay avenidas cerradas ni riesgo cr\u00edtico; SOLO_59 ofrece la mayor rentabilidad por hora y cumple con el deadline.",
+        "[M033] \ud83d\udee1\ufe0f [SUPERVISOR VETO]: SOLO_82 cruza Av. Gonzalitos cerrada y zonas afectadas; SOLO_98 es la alternativa segura m\u00e1s rentable sin cruzar arterias bloqueadas. -> Ejecutando alternativa segura SOLO_98 ($135.6/hr)",
+        "[M064] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_34 ($93.9/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> La opci\u00f3n SOLO_34 no cruza avenidas cerradas y su tiempo est\u00e1 dentro del deadline, ofreciendo la mayor rentabilidad por hora."
+      ]
+    },
+    {
+      "run_id": 8,
+      "clima": "SIN_LLUVIA",
+      "incidente": "NINGUNO",
+      "greedy_neto": 197.82,
+      "optigo_neto": 275.83,
+      "dif_mxn": 78.01,
+      "dif_pct": 39.43,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 1,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 20.0,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 50.65,
+      "optigo_gasolina": 39.17,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> No hay avenidas cerradas ni riesgo cr\u00edtico; SOLO_59 ofrece la mayor rentabilidad por hora y cumple con el deadline.",
+        "[M033] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_82 ($223.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #82 no cruza avenidas cerradas, cumple el deadline y ofrece la mayor rentabilidad por hora (223.6 $/hr) en condiciones seguras.",
+        "[M052] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_81 ($155.1/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La opci\u00f3n SOLO_81 no cruza avenidas cerradas, tiene alta rentabilidad y no excede el deadline del cliente.",
+        "[M071] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_56 ($162.9/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> La opci\u00f3n SOLO_56 no cruza avenidas cerradas y su tiempo est\u00e1 dentro del deadline, ofreciendo la mayor rentabilidad por hora."
+      ]
+    },
+    {
+      "run_id": 9,
+      "clima": "SIN_LLUVIA",
+      "incidente": "NINGUNO",
+      "greedy_neto": 197.82,
+      "optigo_neto": 275.83,
+      "dif_mxn": 78.01,
+      "dif_pct": 39.43,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 1,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 20.0,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 50.65,
+      "optigo_gasolina": 39.17,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #59 no cruza avenidas cerradas ni zonas afectadas, y su tiempo de 24.1 min est\u00e1 dentro del deadline, ofreciendo la mayor rentabilidad por hora.",
+        "[M033] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_82 ($223.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #82 no cruza avenidas cerradas, tiene alta rentabilidad y cumple con el deadline sin penalizaci\u00f3n.",
+        "[M052] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_81 ($155.1/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> La opci\u00f3n SOLO_81 no cruza avenidas cerradas, cumple con el deadline y ofrece la mayor rentabilidad por hora.",
+        "[M071] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_56 ($162.9/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> El pedido #56 no cruza avenidas cerradas y su tiempo de 30.8 min est\u00e1 dentro del deadline, ofreciendo la mayor rentabilidad por hora."
+      ]
+    },
+    {
+      "run_id": 10,
+      "clima": "LLUVIA_LIGERA",
+      "incidente": "ACCIDENTE_VIAL (Av. Gonzalitos)",
+      "greedy_neto": 188.38,
+      "optigo_neto": 287.37,
+      "dif_mxn": 98.99,
+      "dif_pct": 52.55,
+      "greedy_pedidos": 3,
+      "optigo_pedidos": 4,
+      "greedy_retrasos": 1,
+      "optigo_retrasos": 0,
+      "greedy_penalizacion": 18.54,
+      "optigo_penalizacion": 0.0,
+      "greedy_gasolina": 45.59,
+      "optigo_gasolina": 50.62,
+      "decisiones": [
+        "[M009] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_59 ($174.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #59 es transitable, no cruza zonas bloqueadas y ofrece la mayor rentabilidad por hora (174.6 $/hr), superando a las alternativas.",
+        "[M033] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_82 ($235.6/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (BAJO) -> El pedido #82 no cruza avenidas cerradas, tiene alta rentabilidad y tiempo dentro del deadline, sin riesgo cr\u00edtico.",
+        "[M054] \ud83d\udee1\ufe0f [SUPERVISOR VETO]: SOLO_81 cruza Av. Gonzalitos cerrada; se elige SOLO_41 por ser la alternativa segura m\u00e1s rentable que evita la zona bloqueada. -> Ejecutando alternativa segura SOLO_41 ($118.8/hr)",
+        "[M084] \ud83e\udd16 [ESTRATEGA]: Propuso SOLO_4 ($148.0/hr) | \ud83d\udee1\ufe0f [SUPERVISOR]: Aprobado (MEDIO) -> El pedido no cruza avenidas cerradas y su rentabilidad de $148/hr es alta, aunque el calor extremo representa un riesgo medio."
+      ]
+    }
+  ],
+  "resumen": {
+    "win_rate": 0.7,
+    "promedio_greedy": 219.906,
+    "promedio_optigo": 266.969,
+    "diferencial_medio": 47.063,
+    "stdev_greedy": 41.25031264527984,
+    "stdev_optigo": 31.32274482438174
+  }
+}
