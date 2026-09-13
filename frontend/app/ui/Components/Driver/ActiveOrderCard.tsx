@@ -435,13 +435,23 @@ export default function ActiveOrderCard({
               <button
                 type="button"
                 onClick={handleToggleAutonomy}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all text-xs border ${
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all text-xs border flex items-center gap-1.5 ${
                   directives.autonomyMode === 'COPILOT'
                     ? 'bg-purple-500 text-slate-950 border-purple-400'
                     : 'bg-emerald-500 text-slate-950 border-emerald-400'
                 }`}
               >
-                {directives.autonomyMode === 'COPILOT' ? '🤝 Co-Pilot' : '⚡ Auto-Pilot'}
+                {directives.autonomyMode === 'COPILOT' ? (
+                  <>
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Co-Pilot</span>
+                  </>
+                ) : (
+                  <>
+                    <Bot className="w-3.5 h-3.5" />
+                    <span>Auto-Pilot</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

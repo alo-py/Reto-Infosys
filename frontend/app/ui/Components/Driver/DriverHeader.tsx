@@ -197,7 +197,7 @@ export default function DriverHeader({
             {shiftState.directives?.autonomyMode === 'COPILOT' ? (
               <>
                 <UserCheck className="w-3.5 h-3.5 text-purple-200" />
-                <span>Mode: 🤝 Co-Pilot</span>
+                <span>Mode: Co-Pilot</span>
                 <span className="text-[9px] bg-purple-950 text-purple-200 px-1 py-0.5 rounded font-mono border border-purple-400/40">
                   Manual
                 </span>
@@ -205,7 +205,7 @@ export default function DriverHeader({
             ) : (
               <>
                 <Bot className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Mode: ⚡ Auto-Pilot</span>
+                <span>Mode: Auto-Pilot</span>
                 <span className="text-[9px] bg-emerald-950 text-emerald-300 px-1 py-0.5 rounded font-mono border border-emerald-400/40">
                   Auto
                 </span>
@@ -256,8 +256,12 @@ export default function DriverHeader({
             } disabled:opacity-50 disabled:pointer-events-none`}
             title={isBothPlaying ? 'Pause both simulations' : 'Run both OptiGo AI and Greedy simulations simultaneously in parallel'}
           >
-            <Zap className={`w-3.5 h-3.5 ${isBothPlaying ? 'text-amber-300 animate-pulse' : 'text-yellow-300 fill-current'}`} />
-            <span>{isBothPlaying ? 'Pause Both' : '⚡ Run Both'}</span>
+            {isBothPlaying ? (
+              <Pause className="w-3.5 h-3.5 text-amber-300 fill-current" />
+            ) : (
+              <Zap className="w-3.5 h-3.5 text-yellow-300 fill-current" />
+            )}
+            <span>{isBothPlaying ? 'Pause Both' : 'Run Both'}</span>
           </button>
         )}
 

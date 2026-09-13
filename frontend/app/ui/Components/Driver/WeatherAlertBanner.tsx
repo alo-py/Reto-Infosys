@@ -59,7 +59,7 @@ export default function WeatherAlertBanner({
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-white">{shiftState.clima.split(' (')[0]}</span>
+              <span className="text-xs font-bold text-white">{shiftState.clima.replace(/^[^\w\s&]+/, '').trim().split(' (')[0]}</span>
               <span className="text-[11px] font-mono text-emerald-200">{shiftState.temperatura}°C</span>
             </div>
             <div className="text-[10px] text-slate-300">
@@ -90,7 +90,7 @@ export default function WeatherAlertBanner({
             </div>
             <div>
               <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>🚧 Blocked Corridor:</span>
+                <span>Blocked Corridor:</span>
                 <span className="text-rose-200 underline decoration-rose-400 font-semibold">{shiftState.avenidaCerrada}</span>
               </div>
               <div className="text-[10px] text-rose-200/80">
@@ -101,7 +101,7 @@ export default function WeatherAlertBanner({
                   </span>
                 ) : (
                   <span className="text-amber-200">
-                    ⚠️ Critical delay and SLA penalty risk in Greedy baseline
+                    Critical delay and SLA penalty risk in Greedy baseline
                   </span>
                 )}
               </div>
