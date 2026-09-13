@@ -10,7 +10,8 @@ import {
   UserCheck,
   Clock, 
   Flag,
-  Sliders 
+  Sliders,
+  Zap
 } from 'lucide-react';
 import { ActiveShiftState } from './types';
 import { ShiftScenarioConfig } from './scenarios';
@@ -24,6 +25,8 @@ interface DriverHeaderProps {
   isOptigoFinished: boolean;
   isGreedyFinished: boolean;
   onTogglePlay: () => void;
+  onTogglePlayBoth?: () => void;
+  isBothPlaying?: boolean;
   onStepForward: (mins: number) => void;
   onResetShift: () => void;
   onEndShift: () => void;
@@ -45,6 +48,8 @@ export default function DriverHeader({
   isOptigoFinished,
   isGreedyFinished,
   onTogglePlay,
+  onTogglePlayBoth,
+  isBothPlaying = false,
   onStepForward,
   onResetShift,
   onEndShift,
@@ -237,7 +242,25 @@ export default function DriverHeader({
       </div>
 
       {/* 3. Playback & Simulation Controls */}
-      <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+      <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+        {/* Run Both Simulations Concurrently (OptiGo + Greedy) */}
+        {onTogglePlayBoth && (
+          <button
+            type="button"
+            onClick={onTogglePlayBoth}
+            disabled={isOptigoFinished && isGreedyFinished}
+            className={`px-3 py-2 rounded-2xl border transition-all flex items-center gap-1.5 font-bold text-xs shadow-md ${
+              isBothPlaying
+                ? 'bg-linear-to-r from-amber-500/25 to-orange-500/25 border-amber-400/50 text-amber-200 hover:from-amber-500/35 hover:to-orange-500/35'
+                : 'bg-linear-to-r from-indigo-500 via-purple-500 to-emerald-500 text-white border-white/25 hover:brightness-115 shadow-purple-950/40 hover:scale-[1.02]'
+            } disabled:opacity-50 disabled:pointer-events-none`}
+            title={isBothPlaying ? 'Pause both simulations' : 'Run both OptiGo AI and Greedy simulations simultaneously in parallel'}
+          >
+            <Zap className={`w-3.5 h-3.5 ${isBothPlaying ? 'text-amber-300 animate-pulse' : 'text-yellow-300 fill-current'}`} />
+            <span>{isBothPlaying ? 'Pause Both' : '⚡ Run Both'}</span>
+          </button>
+        )}
+
         {/* Play / Pause */}
         <button
           type="button"
@@ -248,7 +271,7 @@ export default function DriverHeader({
               ? 'bg-amber-500/20 border-amber-400/40 text-amber-200 hover:bg-amber-500/30'
               : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-bold shadow-md shadow-emerald-900/30'
           }`}
-          title={isPlaying ? 'Pause Simulation' : 'Start Live Simulation'}
+          title={isPlaying ? `Pause ${activeTab === 'OPTIGO_AI' ? 'OptiGo' : 'Greedy'}` : `Start ${activeTab === 'OPTIGO_AI' ? 'OptiGo' : 'Greedy'}`}
         >
           {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
           <span>{isPlaying ? 'Pause' : 'Start'}</span>

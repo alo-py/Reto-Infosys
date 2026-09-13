@@ -751,6 +751,25 @@ export default function DriverAppPage() {
     }
   };
 
+  const isBothPlaying = isOptigoPlaying && isGreedyPlaying;
+  const isAnyPlaying = isOptigoPlaying || isGreedyPlaying;
+
+  const handleTogglePlayBoth = () => {
+    if (isAnyPlaying) {
+      setIsOptigoPlaying(false);
+      setIsGreedyPlaying(false);
+    } else {
+      if (optigoState.estadoTurno !== 'FINALIZADO') {
+        setIsOptigoPlaying(true);
+        setTimeout(() => stepSimulation('OPTIGO_AI', 1), 0);
+      }
+      if (greedyState.estadoTurno !== 'FINALIZADO') {
+        setIsGreedyPlaying(true);
+        setTimeout(() => stepSimulation('GREEDY', 1), 0);
+      }
+    }
+  };
+
   const handleStepForward = (mins: number) => {
     stepSimulation(activeTab, mins);
   };
@@ -777,6 +796,28 @@ export default function DriverAppPage() {
       greedyBackendIdRef.current = null;
       setGreedyState(createInitialState('GREEDY', scenarioRef.current));
     }
+    setIsSummaryOpen(false);
+  };
+
+  const handleResetBoth = () => {
+    setIsOptigoPlaying(false);
+    setIsGreedyPlaying(false);
+    if (optigoTimerRef.current) {
+      clearInterval(optigoTimerRef.current);
+      optigoTimerRef.current = null;
+    }
+    if (greedyTimerRef.current) {
+      clearInterval(greedyTimerRef.current);
+      greedyTimerRef.current = null;
+    }
+    isOptigoSteppingRef.current = false;
+    isGreedySteppingRef.current = false;
+    hasShownOptigoSummary.current = false;
+    hasShownGreedySummary.current = false;
+    optigoBackendIdRef.current = null;
+    greedyBackendIdRef.current = null;
+    setOptigoState(createInitialState('OPTIGO_AI', scenarioRef.current));
+    setGreedyState(createInitialState('GREEDY', scenarioRef.current));
     setIsSummaryOpen(false);
   };
 
@@ -931,6 +972,8 @@ export default function DriverAppPage() {
         isOptigoFinished={optigoState.estadoTurno === 'FINALIZADO'}
         isGreedyFinished={greedyState.estadoTurno === 'FINALIZADO'}
         onTogglePlay={handleTogglePlay}
+        onTogglePlayBoth={handleTogglePlayBoth}
+        isBothPlaying={isBothPlaying}
         onStepForward={handleStepForward}
         onResetShift={handleResetShift}
         onEndShift={handleEndShift}
@@ -977,7 +1020,7 @@ export default function DriverAppPage() {
         activeTab={activeTab}
         onSwitchTab={(tab) => handleSelectTab(tab, true)}
         onClose={() => setIsSummaryOpen(false)}
-        onRestartShift={handleResetShift}
+        onRestartShift={handleResetBoth}
       />
 
       {/* Shift Scenario & Event Selector Modal */}
