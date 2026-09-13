@@ -321,9 +321,9 @@ export default function DriverMap({ shiftState }: DriverMapProps) {
   }, [shiftState.avenidaCerrada]);
 
   return (
-    <div className="isolate relative z-0 w-full h-full min-h-[500px] lg:min-h-[620px] rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-slate-950">
-      {/* Contenedor del mapa de Leaflet */}
-      <div ref={mapContainerRef} className="w-full h-full bg-slate-950" />
+    <div className="isolate relative z-0 w-full h-[620px] lg:h-[680px] rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-slate-950">
+      {/* Contenedor del mapa de Leaflet que llena el 100% absoluto */}
+      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
       {/* Monterrey Live Compass & Watermark */}
       <div className="absolute top-4 left-4 z-10 bg-slate-950/80 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-1.5 text-xs text-slate-200 flex items-center gap-2 shadow-lg">
